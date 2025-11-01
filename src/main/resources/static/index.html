@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Local Server</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
     <style>
         * {
             margin: 0;
@@ -146,6 +147,104 @@
             font-style: italic;
             font-size: 14px;
         }
+
+        /* Markdown стили */
+        .message pre {
+            background: #1E1E1E;
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            margin: 12px 0;
+            position: relative;
+        }
+
+        .message code {
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+        }
+
+        .message pre code {
+            background: transparent;
+            padding: 0;
+            border-radius: 0;
+            color: #E6EDF3;
+        }
+
+        .message p code {
+            background: rgba(0,0,0,0.06);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 13px;
+            color: #D73A49;
+        }
+
+        .user-message p code {
+            background: rgba(255,255,255,0.2);
+            color: #FFFFFF;
+        }
+
+        .message p {
+            margin: 8px 0;
+        }
+
+        .message p:first-child {
+            margin-top: 0;
+        }
+
+        .message p:last-child {
+            margin-bottom: 0;
+        }
+
+        .message ul, .message ol {
+            margin: 8px 0;
+            padding-left: 24px;
+        }
+
+        .message li {
+            margin: 4px 0;
+        }
+
+        .message blockquote {
+            border-left: 3px solid #BDBDBD;
+            padding-left: 12px;
+            margin: 8px 0;
+            color: rgba(0,0,0,0.6);
+        }
+
+        .message h1, .message h2, .message h3 {
+            margin: 16px 0 8px 0;
+            font-weight: 500;
+        }
+
+        .message h1 {
+            font-size: 20px;
+        }
+
+        .message h2 {
+            font-size: 18px;
+        }
+
+        .message h3 {
+            font-size: 16px;
+        }
+
+        .copy-button {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(255,255,255,0.1);
+            color: #E6EDF3;
+            border: 1px solid rgba(255,255,255,0.2);
+            padding: 4px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.2s;
+        }
+
+        .copy-button:hover {
+            background: rgba(255,255,255,0.2);
+        }
     </style>
 </head>
 <body>
@@ -168,15 +267,54 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <script>
         const chatContainer = document.getElementById('chatContainer');
         const messageInput = document.getElementById('messageInput');
         const sendButton = document.getElementById('sendButton');
 
+        // Настройка marked для рендеринга кода
+        marked.setOptions({
+            highlight: function(code, lang) {
+                if (lang && hljs.getLanguage(lang)) {
+                    return hljs.highlight(code, { language: lang }).value;
+                }
+                return hljs.highlightAuto(code).value;
+            },
+            breaks: true,
+            gfm: true
+        });
+
         function addMessage(text, isUser) {
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${isUser ? 'user-message' : 'assistant-message'}`;
-            messageDiv.textContent = text;
+
+            if (isUser) {
+                messageDiv.textContent = text;
+            } else {
+                // Рендерим markdown для ответов ассистента
+                messageDiv.innerHTML = marked.parse(text);
+
+                // Добавляем кнопки копирования для блоков кода
+                messageDiv.querySelectorAll('pre').forEach((preElement) => {
+                    const copyButton = document.createElement('button');
+                    copyButton.className = 'copy-button';
+                    copyButton.textContent = 'Копировать';
+                    copyButton.onclick = () => {
+                        const code = preElement.querySelector('code').textContent;
+                        navigator.clipboard.writeText(code).then(() => {
+                            copyButton.textContent = 'Скопировано!';
+                            setTimeout(() => {
+                                copyButton.textContent = 'Копировать';
+                            }, 2000);
+                        });
+                    };
+                    preElement.style.paddingTop = '40px';
+                    preElement.appendChild(copyButton);
+                });
+            }
+
             chatContainer.appendChild(messageDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
