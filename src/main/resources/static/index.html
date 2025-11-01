@@ -12,25 +12,37 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: #f5f5f5;
+            font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #FAFAFA;
             padding: 20px;
         }
 
         .container {
             max-width: 800px;
             margin: 0 auto;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            background: #FFFFFF;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1), 0 4px 8px rgba(0,0,0,0.08);
             overflow: hidden;
         }
 
         .header {
-            background: #007AFF;
-            color: white;
-            padding: 20px;
+            background: #1976D2;
+            color: #FFFFFF;
+            padding: 24px 20px;
             text-align: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+            font-weight: 400;
         }
 
         .chat-container {
@@ -39,73 +51,100 @@
             padding: 20px;
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 12px;
+            background: #FAFAFA;
         }
 
         .message {
             padding: 12px 16px;
-            border-radius: 18px;
+            border-radius: 8px;
             max-width: 70%;
             word-wrap: break-word;
+            line-height: 1.5;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.08);
         }
 
         .user-message {
-            background: #007AFF;
-            color: white;
+            background: #1976D2;
+            color: #FFFFFF;
             align-self: flex-end;
             margin-left: auto;
+            border-bottom-right-radius: 2px;
         }
 
         .assistant-message {
-            background: #E9E9EB;
-            color: black;
+            background: #FFFFFF;
+            color: rgba(0,0,0,0.87);
             align-self: flex-start;
+            border-bottom-left-radius: 2px;
+            border: 1px solid #E0E0E0;
         }
 
         .input-container {
-            padding: 20px;
-            border-top: 1px solid #e0e0e0;
+            padding: 16px 20px;
+            border-top: 1px solid #E0E0E0;
             display: flex;
-            gap: 10px;
+            gap: 12px;
+            background: #FFFFFF;
         }
 
         #messageInput {
             flex: 1;
             padding: 12px 16px;
-            border: 1px solid #ddd;
-            border-radius: 20px;
+            border: 1px solid #BDBDBD;
+            border-radius: 4px;
             font-size: 16px;
             outline: none;
+            font-family: inherit;
+            transition: border-color 0.2s;
+            color: rgba(0,0,0,0.87);
         }
 
         #messageInput:focus {
-            border-color: #007AFF;
+            border-color: #1976D2;
+            border-width: 2px;
+            padding: 11px 15px;
+        }
+
+        #messageInput::placeholder {
+            color: rgba(0,0,0,0.38);
         }
 
         #sendButton {
-            padding: 12px 30px;
-            background: #007AFF;
-            color: white;
+            padding: 12px 24px;
+            background: #1976D2;
+            color: #FFFFFF;
             border: none;
-            border-radius: 20px;
-            font-size: 16px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
             cursor: pointer;
-            transition: background 0.3s;
+            transition: background 0.2s, box-shadow 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.14);
         }
 
         #sendButton:hover {
-            background: #0051D5;
+            background: #1565C0;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        #sendButton:active {
+            background: #0D47A1;
         }
 
         #sendButton:disabled {
-            background: #ccc;
+            background: #BDBDBD;
             cursor: not-allowed;
+            box-shadow: none;
         }
 
         .loading {
             text-align: center;
-            color: #666;
+            color: rgba(0,0,0,0.54);
             font-style: italic;
+            font-size: 14px;
         }
     </style>
 </head>
