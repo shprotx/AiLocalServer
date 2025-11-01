@@ -18,6 +18,12 @@ dependencies {
     implementation("io.ktor:ktor-client-content-negotiation:3.0.3")
     implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.3")
 
+    // Ktor Server
+    implementation("io.ktor:ktor-server-core:3.0.3")
+    implementation("io.ktor:ktor-server-netty:3.0.3")
+    implementation("io.ktor:ktor-server-content-negotiation:3.0.3")
+    implementation("io.ktor:ktor-server-cors:3.0.3")
+
     // Kotlinx Serialization
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 

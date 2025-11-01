@@ -1,11 +1,19 @@
 package kz.shprot
 
-import kotlinx.coroutines.runBlocking
+import io.ktor.http.*
+import io.ktor.serialization.kotlinx.json.*
+import io.ktor.server.application.*
+import io.ktor.server.engine.*
+import io.ktor.server.netty.*
+import io.ktor.server.plugins.contentnegotiation.*
+import io.ktor.server.request.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
+import kz.shprot.models.ChatRequest
+import kz.shprot.models.ChatResponse
+import java.io.File
 
-fun main() = runBlocking {
-    println("=== Локальный сервер для общения с Yandex LLM ===")
-    println()
-
+fun main() {
     val apiKey = System.getenv("YANDEX_API_KEY")
     val folderId = System.getenv("YANDEX_FOLDER_ID")
 
@@ -13,34 +21,32 @@ fun main() = runBlocking {
         println("Ошибка: Необходимо установить переменные окружения:")
         println("  - YANDEX_API_KEY (ваш API ключ)")
         println("  - YANDEX_FOLDER_ID (ID вашей папки в Yandex Cloud)")
-        return@runBlocking
+        return
     }
 
-    val client = YandexLLMClient(apiKey, folderId)
+    val llmClient = YandexLLMClient(apiKey, folderId)
 
-    println("Сервер запущен. Введите ваше сообщение (или 'exit' для выхода):")
+    println("=== Локальный сервер для общения с Yandex LLM ===")
+    println("Сервер запускается на http://localhost:8080")
+    println("Откройте браузер и перейдите по этому адресу")
     println()
 
-    while (true) {
-        print("Вы: ")
-        val userInput = readlnOrNull()?.trim()
-
-        if (userInput.isNullOrBlank()) {
-            continue
+    embeddedServer(Netty, port = 8080) {
+        install(ContentNegotiation) {
+            json()
         }
 
-        if (userInput.lowercase() == "exit") {
-            println("Завершение работы...")
-            break
+        routing {
+            get("/") {
+                val htmlContent = File("src/main/resources/static/index.html").readText()
+                call.respondText(htmlContent, ContentType.Text.Html)
+            }
+
+            post("/api/chat") {
+                val request = call.receive<ChatRequest>()
+                val response = llmClient.sendMessage(request.message)
+                call.respond(ChatResponse(response))
+            }
         }
-
-        println("Отправка запроса...")
-        val response = client.sendMessage(userInput)
-        println()
-        println("Ассистент: $response")
-        println()
-    }
-
-    client.close()
-    println("Сервер остановлен.")
+    }.start(wait = true)
 }
