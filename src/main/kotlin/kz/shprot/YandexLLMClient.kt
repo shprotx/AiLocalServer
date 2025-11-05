@@ -13,7 +13,7 @@ import kz.shprot.models.*
 class YandexLLMClient(
     private val apiKey: String,
     private val folderId: String,
-    private val modelUri: String = "gpt://$folderId/yandexgpt/latest"  // Полная модель вместо lite
+    private val modelUri: String = "gpt://$folderId/qwen3-30b-a3b"
 ) {
     private val client = HttpClient(CIO) {
         install(ContentNegotiation) {
@@ -24,27 +24,7 @@ class YandexLLMClient(
         }
     }
 
-    // JSON Schema для структурированного ответа (порядок полей важен)
-    private val responseJsonSchema = JsonSchemaParam(
-        schema = JsonSchema(
-            type = "object",
-            properties = mapOf(
-                "title" to JsonSchemaProperty(
-                    type = "string",
-                    description = "Краткий заголовок ответа",
-                    title = "Title"
-                ),
-                "message" to JsonSchemaProperty(
-                    type = "string",
-                    description = "Полный текст ответа",
-                    title = "Message"
-                )
-            ),
-            required = listOf("title", "message")
-        )
-    )
-
-    suspend fun sendMessage(messages: List<Message>, useJsonSchema: Boolean = false): String {
+    suspend fun sendMessage(messages: List<Message>): String {
         val request = YandexCompletionRequest(
             modelUri = modelUri,
             completionOptions = CompletionOptions(
@@ -53,7 +33,7 @@ class YandexLLMClient(
                 maxTokens = "2000"
             ),
             messages = messages,
-            json_schema = if (useJsonSchema) responseJsonSchema else null
+            jsonObject = true,
         )
 
         return runCatching {
@@ -77,13 +57,9 @@ class YandexLLMClient(
     }
 
     suspend fun sendMessageWithHistory(messages: List<Message>): LLMStructuredResponse {
-        // JSON Schema работает только с полной моделью yandexgpt
-        val useSchema = modelUri.contains("yandexgpt/") && !modelUri.contains("yandexgpt-lite/")
-
-        val rawResponse = sendMessage(messages, useJsonSchema = useSchema)
+        val rawResponse = sendMessage(messages)
 
         return runCatching {
-
             // Парсим JSON
             Json.decodeFromString<LLMStructuredResponse>(rawResponse)
         }.getOrElse {

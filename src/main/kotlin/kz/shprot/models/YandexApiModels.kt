@@ -7,7 +7,7 @@ data class YandexCompletionRequest(
     val modelUri: String,
     val completionOptions: CompletionOptions,
     val messages: List<Message>,
-    val json_schema: JsonSchemaParam? = null
+    val jsonObject: Boolean,
 )
 
 @Serializable
