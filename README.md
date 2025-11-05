@@ -19,7 +19,13 @@
 ```bash
 export YANDEX_API_KEY=your_api_key
 export YANDEX_FOLDER_ID=your_folder_id
+export MODEL_TYPE=yandexgpt  # или yandexgpt-lite (опционально, по умолчанию yandexgpt)
 ```
+
+### Выбор модели
+
+- **yandexgpt** (рекомендуется) - полная модель с поддержкой JSON Schema, более точные ответы
+- **yandexgpt-lite** - облегченная версия, быстрее и дешевле, но без JSON Schema
 
 ## Запуск
 

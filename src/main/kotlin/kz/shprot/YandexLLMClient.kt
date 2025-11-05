@@ -13,7 +13,7 @@ import kz.shprot.models.*
 class YandexLLMClient(
     private val apiKey: String,
     private val folderId: String,
-    private val modelUri: String = "gpt://$folderId/yandexgpt-lite/latest"
+    private val modelUri: String = "gpt://$folderId/yandexgpt/latest"  // Полная модель вместо lite
 ) {
     private val client = HttpClient(CIO) {
         install(ContentNegotiation) {
@@ -24,7 +24,27 @@ class YandexLLMClient(
         }
     }
 
-    suspend fun sendMessage(messages: List<Message>): String {
+    // JSON Schema для структурированного ответа (порядок полей важен)
+    private val responseJsonSchema = JsonSchemaParam(
+        schema = JsonSchema(
+            type = "object",
+            properties = mapOf(
+                "title" to JsonSchemaProperty(
+                    type = "string",
+                    description = "Краткий заголовок ответа",
+                    title = "Title"
+                ),
+                "message" to JsonSchemaProperty(
+                    type = "string",
+                    description = "Полный текст ответа",
+                    title = "Message"
+                )
+            ),
+            required = listOf("title", "message")
+        )
+    )
+
+    suspend fun sendMessage(messages: List<Message>, useJsonSchema: Boolean = false): String {
         val request = YandexCompletionRequest(
             modelUri = modelUri,
             completionOptions = CompletionOptions(
@@ -32,50 +52,46 @@ class YandexLLMClient(
                 temperature = 0.6,
                 maxTokens = "2000"
             ),
-            messages = messages
+            messages = messages,
+            json_schema = if (useJsonSchema) responseJsonSchema else null
         )
 
-        return try {
+        return runCatching {
             val response: YandexCompletionResponse = client.post("https://llm.api.cloud.yandex.net/foundationModels/v1/completion") {
                 contentType(ContentType.Application.Json)
                 header("Authorization", "Api-Key $apiKey")
                 setBody(request)
             }.body()
 
-            response.result.alternatives.firstOrNull()?.message?.text
+            val rawText = response.result.alternatives.firstOrNull()?.message?.text
                 ?: "Ошибка: пустой ответ от модели"
-        } catch (e: Exception) {
+
+            // Логируем сырой ответ от модели (самое раннее место)
+            println("RAW API RESPONSE: $rawText")
+
+            rawText
+        }.getOrElse { e ->
+            println("API ERROR: ${e.message}")
             "Ошибка при обращении к API: ${e.message}"
         }
     }
 
     suspend fun sendMessageWithHistory(messages: List<Message>): LLMStructuredResponse {
-        val rawResponse = sendMessage(messages)
+        // JSON Schema работает только с полной моделью yandexgpt
+        val useSchema = modelUri.contains("yandexgpt/") && !modelUri.contains("yandexgpt-lite/")
 
-        return try {
-            // Пытаемся извлечь JSON из ответа
-            val jsonText = extractJsonFromResponse(rawResponse)
-            Json.decodeFromString<LLMStructuredResponse>(jsonText)
-        } catch (e: Exception) {
-            // Если не удалось распарсить JSON, возвращаем ответ как есть
+        val rawResponse = sendMessage(messages, useJsonSchema = useSchema)
+
+        return runCatching {
+
+            // Парсим JSON
+            Json.decodeFromString<LLMStructuredResponse>(rawResponse)
+        }.getOrElse {
+            // Если не удалось распарсить, возвращаем как есть
             LLMStructuredResponse(
-                title = "Ответ",
+                title = "Ошибка парсинга",
                 message = rawResponse
             )
-        }
-    }
-
-    private fun extractJsonFromResponse(response: String): String {
-        // Ищем JSON объект в ответе
-
-        println("response = $response")
-        val jsonStart = response.indexOf("{")
-        val jsonEnd = response.lastIndexOf("}") + 1
-
-        return if (jsonStart != -1 && jsonEnd > jsonStart) {
-            response.substring(jsonStart, jsonEnd)
-        } else {
-            response
         }
     }
 

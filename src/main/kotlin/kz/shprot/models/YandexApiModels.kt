@@ -6,7 +6,8 @@ import kotlinx.serialization.Serializable
 data class YandexCompletionRequest(
     val modelUri: String,
     val completionOptions: CompletionOptions,
-    val messages: List<Message>
+    val messages: List<Message>,
+    val json_schema: JsonSchemaParam? = null
 )
 
 @Serializable
@@ -45,4 +46,23 @@ data class Usage(
     val inputTextTokens: String,
     val completionTokens: String,
     val totalTokens: String
+)
+
+@Serializable
+data class JsonSchemaParam(
+    val schema: JsonSchema
+)
+
+@Serializable
+data class JsonSchema(
+    val type: String = "object",
+    val properties: Map<String, JsonSchemaProperty>,
+    val required: List<String>
+)
+
+@Serializable
+data class JsonSchemaProperty(
+    val type: String,
+    val description: String? = null,
+    val title: String? = null
 )

@@ -16,18 +16,23 @@ import java.io.File
 fun main() {
     val apiKey = System.getenv("YANDEX_API_KEY")
     val folderId = System.getenv("YANDEX_FOLDER_ID")
+    val modelType = System.getenv("MODEL_TYPE") ?: "yandexgpt"  // По умолчанию полная модель
 
     if (apiKey.isNullOrBlank() || folderId.isNullOrBlank()) {
         println("Ошибка: Необходимо установить переменные окружения:")
         println("  - YANDEX_API_KEY (ваш API ключ)")
         println("  - YANDEX_FOLDER_ID (ID вашей папки в Yandex Cloud)")
+        println("  - MODEL_TYPE (опционально: yandexgpt или yandexgpt-lite, по умолчанию yandexgpt)")
         return
     }
 
-    val llmClient = YandexLLMClient(apiKey, folderId)
+    val modelUri = "gpt://$folderId/$modelType/latest"
+    val llmClient = YandexLLMClient(apiKey, folderId, modelUri)
     val chatHistory = ChatHistory()
 
     println("=== Локальный сервер для общения с Yandex LLM ===")
+    println("Модель: $modelType")
+    println("JSON Schema: ${if (modelType == "yandexgpt") "включена" else "отключена (lite модель)"}")
     println("Сервер запускается на http://localhost:8080")
     println("Откройте браузер и перейдите по этому адресу")
     println()
