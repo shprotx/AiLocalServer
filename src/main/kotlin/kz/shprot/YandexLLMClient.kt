@@ -24,7 +24,7 @@ class YandexLLMClient(
         }
     }
 
-    suspend fun sendMessage(userMessage: String): String {
+    suspend fun sendMessage(messages: List<Message>): String {
         val request = YandexCompletionRequest(
             modelUri = modelUri,
             completionOptions = CompletionOptions(
@@ -32,12 +32,7 @@ class YandexLLMClient(
                 temperature = 0.6,
                 maxTokens = "2000"
             ),
-            messages = listOf(
-                Message(
-                    role = "user",
-                    text = userMessage
-                )
-            )
+            messages = messages
         )
 
         return try {
@@ -51,6 +46,36 @@ class YandexLLMClient(
                 ?: "Ошибка: пустой ответ от модели"
         } catch (e: Exception) {
             "Ошибка при обращении к API: ${e.message}"
+        }
+    }
+
+    suspend fun sendMessageWithHistory(messages: List<Message>): LLMStructuredResponse {
+        val rawResponse = sendMessage(messages)
+
+        return try {
+            // Пытаемся извлечь JSON из ответа
+            val jsonText = extractJsonFromResponse(rawResponse)
+            Json.decodeFromString<LLMStructuredResponse>(jsonText)
+        } catch (e: Exception) {
+            // Если не удалось распарсить JSON, возвращаем ответ как есть
+            LLMStructuredResponse(
+                title = "Ответ",
+                message = rawResponse
+            )
+        }
+    }
+
+    private fun extractJsonFromResponse(response: String): String {
+        // Ищем JSON объект в ответе
+
+        println("response = $response")
+        val jsonStart = response.indexOf("{")
+        val jsonEnd = response.lastIndexOf("}") + 1
+
+        return if (jsonStart != -1 && jsonEnd > jsonStart) {
+            response.substring(jsonStart, jsonEnd)
+        } else {
+            response
         }
     }
 

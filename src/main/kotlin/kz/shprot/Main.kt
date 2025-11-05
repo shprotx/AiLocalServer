@@ -25,6 +25,7 @@ fun main() {
     }
 
     val llmClient = YandexLLMClient(apiKey, folderId)
+    val chatHistory = ChatHistory()
 
     println("=== Локальный сервер для общения с Yandex LLM ===")
     println("Сервер запускается на http://localhost:8080")
@@ -44,8 +45,25 @@ fun main() {
 
             post("/api/chat") {
                 val request = call.receive<ChatRequest>()
-                val response = llmClient.sendMessage(request.message)
-                call.respond(ChatResponse(response))
+
+                // Строим список сообщений с историей
+                val messages = chatHistory.buildMessagesWithHistory(
+                    sessionId = request.sessionId,
+                    userMessage = request.message
+                )
+
+                // Отправляем запрос к LLM
+                val llmResponse = llmClient.sendMessageWithHistory(messages)
+
+                // Сохраняем сообщения в истории
+                chatHistory.addMessage(request.sessionId, "user", request.message)
+                chatHistory.addMessage(request.sessionId, "assistant", llmResponse.message)
+
+                // Отправляем ответ клиенту
+                call.respond(ChatResponse(
+                    response = llmResponse.message,
+                    title = llmResponse.title
+                ))
             }
         }
     }.start(wait = true)

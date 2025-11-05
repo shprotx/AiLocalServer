@@ -286,15 +286,29 @@
             gfm: true
         });
 
-        function addMessage(text, isUser) {
+        function addMessage(text, isUser, title = null) {
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${isUser ? 'user-message' : 'assistant-message'}`;
 
             if (isUser) {
                 messageDiv.textContent = text;
             } else {
+                // Добавляем заголовок если он есть
+                if (title) {
+                    const titleElement = document.createElement('h3');
+                    titleElement.textContent = title;
+                    titleElement.style.marginTop = '0';
+                    titleElement.style.marginBottom = '8px';
+                    titleElement.style.fontSize = '16px';
+                    titleElement.style.fontWeight = '600';
+                    titleElement.style.color = '#1976D2';
+                    messageDiv.appendChild(titleElement);
+                }
+
                 // Рендерим markdown для ответов ассистента
-                messageDiv.innerHTML = marked.parse(text);
+                const contentDiv = document.createElement('div');
+                contentDiv.innerHTML = marked.parse(text);
+                messageDiv.appendChild(contentDiv);
 
                 // Добавляем кнопки копирования для блоков кода
                 messageDiv.querySelectorAll('pre').forEach((preElement) => {
@@ -343,7 +357,7 @@
 
                 const data = await response.json();
                 chatContainer.removeChild(loadingDiv);
-                addMessage(data.response, false);
+                addMessage(data.response, false, data.title);
             } catch (error) {
                 chatContainer.removeChild(loadingDiv);
                 addMessage('Ошибка: ' + error.message, false);
