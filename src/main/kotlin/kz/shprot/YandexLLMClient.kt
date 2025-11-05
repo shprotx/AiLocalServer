@@ -12,8 +12,7 @@ import kz.shprot.models.*
 
 class YandexLLMClient(
     private val apiKey: String,
-    private val folderId: String,
-    private val modelUri: String = "gpt://$folderId/qwen3-30b-a3b"
+    private val modelUri: String,
 ) {
     private val client = HttpClient(CIO) {
         install(ContentNegotiation) {
@@ -61,6 +60,7 @@ class YandexLLMClient(
 
         return runCatching {
             // Парсим JSON
+            println("resp = $rawResponse")
             Json.decodeFromString<LLMStructuredResponse>(rawResponse)
         }.getOrElse {
             // Если не удалось распарсить, возвращаем как есть

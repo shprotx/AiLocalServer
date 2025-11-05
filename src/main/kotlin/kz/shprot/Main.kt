@@ -16,7 +16,7 @@ import java.io.File
 fun main() {
     val apiKey = System.getenv("YANDEX_API_KEY")
     val folderId = System.getenv("YANDEX_FOLDER_ID")
-    val modelType = System.getenv("MODEL_TYPE") ?: "yandexgpt"  // По умолчанию полная модель
+    val modelType = "yandexgpt"  // По умолчанию полная модель
 
     if (apiKey.isNullOrBlank() || folderId.isNullOrBlank()) {
         println("Ошибка: Необходимо установить переменные окружения:")
@@ -27,7 +27,7 @@ fun main() {
     }
 
     val modelUri = "gpt://$folderId/$modelType/latest"
-    val llmClient = YandexLLMClient(apiKey, folderId, modelUri)
+    val llmClient = YandexLLMClient(apiKey, modelUri)
     val chatHistory = ChatHistory()
 
     println("=== Локальный сервер для общения с Yandex LLM ===")
