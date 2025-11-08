@@ -11,7 +11,15 @@ data class ChatRequest(
 @Serializable
 data class ChatResponse(
     val response: String,
-    val title: String? = null
+    val title: String? = null,
+    val isMultiAgent: Boolean = false,
+    val agents: List<AgentResponseData>? = null
+)
+
+@Serializable
+data class AgentResponseData(
+    val role: String,
+    val content: String
 )
 
 @Serializable

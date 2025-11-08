@@ -29,10 +29,12 @@ fun main() {
     val modelUri = "gpt://$folderId/$modelType/latest"
     val llmClient = YandexLLMClient(apiKey, modelUri)
     val chatHistory = ChatHistory()
+    val agentManager = AgentManager(apiKey, modelUri, chatHistory)
 
     println("=== Локальный сервер для общения с Yandex LLM ===")
     println("Модель: $modelType")
     println("JSON Schema: ${if (modelType == "yandexgpt") "включена" else "отключена (lite модель)"}")
+    println("Multi-Agent система: включена")
     println("Сервер запускается на http://localhost:8080")
     println("Откройте браузер и перейдите по этому адресу")
     println()
@@ -51,24 +53,43 @@ fun main() {
             post("/api/chat") {
                 val request = call.receive<ChatRequest>()
 
-                // Строим список сообщений с историей
-                val messages = chatHistory.buildMessagesWithHistory(
-                    sessionId = request.sessionId,
-                    userMessage = request.message
-                )
+                // Получаем историю сообщений для контекста
+                val history = chatHistory.getMessages(request.sessionId)
 
-                // Отправляем запрос к LLM
-                val llmResponse = llmClient.sendMessageWithHistory(messages)
+                // Обрабатываем сообщение через multi-agent систему
+                val multiAgentResponse = agentManager.processMessage(
+                    sessionId = request.sessionId,
+                    userMessage = request.message,
+                    history = history
+                )
 
                 // Сохраняем сообщения в истории
                 chatHistory.addMessage(request.sessionId, "user", request.message)
-                chatHistory.addMessage(request.sessionId, "assistant", llmResponse.message)
+                chatHistory.addMessage(request.sessionId, "assistant", multiAgentResponse.synthesis)
 
-                // Отправляем ответ клиенту
-                call.respond(ChatResponse(
-                    response = llmResponse.message,
-                    title = llmResponse.title
-                ))
+                // Преобразуем в ChatResponse
+                val response = if (multiAgentResponse.isMultiAgent) {
+                    ChatResponse(
+                        response = multiAgentResponse.synthesis,
+                        title = multiAgentResponse.title,
+                        isMultiAgent = true,
+                        agents = multiAgentResponse.agentResponses.map {
+                            kz.shprot.models.AgentResponseData(
+                                role = it.agentRole,
+                                content = it.content
+                            )
+                        }
+                    )
+                } else {
+                    ChatResponse(
+                        response = multiAgentResponse.synthesis,
+                        title = multiAgentResponse.title,
+                        isMultiAgent = false,
+                        agents = null
+                    )
+                }
+
+                call.respond(response)
             }
         }
     }.start(wait = true)

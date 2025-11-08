@@ -245,6 +245,60 @@
         .copy-button:hover {
             background: rgba(255,255,255,0.2);
         }
+
+        /* Multi-agent стили */
+        .multi-agent-container {
+            background: #FFFFFF;
+            align-self: flex-start;
+            border: 2px solid #1976D2;
+            border-radius: 8px;
+            max-width: 85%;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+        }
+
+        .multi-agent-header {
+            background: linear-gradient(135deg, #1976D2 0%, #1565C0 100%);
+            color: #FFFFFF;
+            padding: 12px 16px;
+            border-radius: 6px 6px 0 0;
+            font-weight: 500;
+            font-size: 15px;
+        }
+
+        .agent-response {
+            padding: 16px;
+            border-bottom: 1px solid #E0E0E0;
+        }
+
+        .agent-response:last-child {
+            border-bottom: none;
+        }
+
+        .agent-role {
+            display: inline-block;
+            background: #E3F2FD;
+            color: #1976D2;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .synthesis-section {
+            background: #F5F5F5;
+            padding: 16px;
+            border-radius: 0 0 6px 6px;
+        }
+
+        .synthesis-label {
+            font-weight: 600;
+            color: #1976D2;
+            margin-bottom: 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
     </style>
 </head>
 <body>
@@ -286,14 +340,64 @@
             gfm: true
         });
 
-        function addMessage(text, isUser, title = null) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${isUser ? 'user-message' : 'assistant-message'}`;
-
+        function addMessage(text, isUser, title = null, isMultiAgent = false, agents = null) {
             if (isUser) {
+                // Простое сообщение от пользователя
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message user-message';
                 messageDiv.textContent = text;
+                chatContainer.appendChild(messageDiv);
+            } else if (isMultiAgent && agents && agents.length > 0) {
+                // Multi-agent ответ
+                const container = document.createElement('div');
+                container.className = 'multi-agent-container';
+
+                // Заголовок
+                const header = document.createElement('div');
+                header.className = 'multi-agent-header';
+                header.textContent = title || 'Консультация специалистов';
+                container.appendChild(header);
+
+                // Ответы каждого агента
+                agents.forEach(agent => {
+                    const agentDiv = document.createElement('div');
+                    agentDiv.className = 'agent-response';
+
+                    const roleLabel = document.createElement('div');
+                    roleLabel.className = 'agent-role';
+                    roleLabel.textContent = agent.role;
+                    agentDiv.appendChild(roleLabel);
+
+                    const contentDiv = document.createElement('div');
+                    contentDiv.innerHTML = marked.parse(agent.content);
+                    agentDiv.appendChild(contentDiv);
+
+                    addCopyButtons(agentDiv);
+                    container.appendChild(agentDiv);
+                });
+
+                // Синтез
+                const synthesisDiv = document.createElement('div');
+                synthesisDiv.className = 'synthesis-section';
+
+                const synthesisLabel = document.createElement('div');
+                synthesisLabel.className = 'synthesis-label';
+                synthesisLabel.textContent = 'Итоговое заключение';
+                synthesisDiv.appendChild(synthesisLabel);
+
+                const synthesisContent = document.createElement('div');
+                synthesisContent.innerHTML = marked.parse(text);
+                synthesisDiv.appendChild(synthesisContent);
+
+                addCopyButtons(synthesisDiv);
+                container.appendChild(synthesisDiv);
+
+                chatContainer.appendChild(container);
             } else {
-                // Добавляем заголовок если он есть
+                // Обычное сообщение от ассистента
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message assistant-message';
+
                 if (title) {
                     const titleElement = document.createElement('h3');
                     titleElement.textContent = title;
@@ -305,32 +409,34 @@
                     messageDiv.appendChild(titleElement);
                 }
 
-                // Рендерим markdown для ответов ассистента
                 const contentDiv = document.createElement('div');
                 contentDiv.innerHTML = marked.parse(text);
                 messageDiv.appendChild(contentDiv);
 
-                // Добавляем кнопки копирования для блоков кода
-                messageDiv.querySelectorAll('pre').forEach((preElement) => {
-                    const copyButton = document.createElement('button');
-                    copyButton.className = 'copy-button';
-                    copyButton.textContent = 'Копировать';
-                    copyButton.onclick = () => {
-                        const code = preElement.querySelector('code').textContent;
-                        navigator.clipboard.writeText(code).then(() => {
-                            copyButton.textContent = 'Скопировано!';
-                            setTimeout(() => {
-                                copyButton.textContent = 'Копировать';
-                            }, 2000);
-                        });
-                    };
-                    preElement.style.paddingTop = '40px';
-                    preElement.appendChild(copyButton);
-                });
+                addCopyButtons(messageDiv);
+                chatContainer.appendChild(messageDiv);
             }
 
-            chatContainer.appendChild(messageDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function addCopyButtons(element) {
+            element.querySelectorAll('pre').forEach((preElement) => {
+                const copyButton = document.createElement('button');
+                copyButton.className = 'copy-button';
+                copyButton.textContent = 'Копировать';
+                copyButton.onclick = () => {
+                    const code = preElement.querySelector('code').textContent;
+                    navigator.clipboard.writeText(code).then(() => {
+                        copyButton.textContent = 'Скопировано!';
+                        setTimeout(() => {
+                            copyButton.textContent = 'Копировать';
+                        }, 2000);
+                    });
+                };
+                preElement.style.paddingTop = '40px';
+                preElement.appendChild(copyButton);
+            });
         }
 
         async function sendMessage() {
@@ -357,7 +463,7 @@
 
                 const data = await response.json();
                 chatContainer.removeChild(loadingDiv);
-                addMessage(data.response, false, data.title);
+                addMessage(data.response, false, data.title, data.isMultiAgent, data.agents);
             } catch (error) {
                 chatContainer.removeChild(loadingDiv);
                 addMessage('Ошибка: ' + error.message, false);
