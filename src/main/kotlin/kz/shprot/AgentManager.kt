@@ -15,10 +15,10 @@ import java.util.*
  */
 class AgentManager(
     private val apiKey: String,
-    private val modelUri: String,
+    private val model: String,
     private val chatHistory: ChatHistory
 ) {
-    private val baseClient = YandexLLMClient(apiKey, modelUri)
+    private val baseClient = DeepSeekClient(apiKey, model)
     private val jsonParser = Json { ignoreUnknownKeys = true }
 
     /**

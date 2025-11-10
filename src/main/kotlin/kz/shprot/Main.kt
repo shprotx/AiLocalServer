@@ -14,29 +14,26 @@ import kz.shprot.models.ChatResponse
 import java.io.File
 
 fun main() {
-    val apiKey = System.getenv("YANDEX_API_KEY")
-    val folderId = System.getenv("YANDEX_FOLDER_ID")
-    val modelType = "yandexgpt"  // По умолчанию полная модель
+    val apiKey = System.getenv("DEEPSEEK_API_KEY")
+    val model = System.getenv("MODEL") ?: "deepseek-chat"  // По умолчанию deepseek-chat
 
-    if (apiKey.isNullOrBlank() || folderId.isNullOrBlank()) {
+    if (apiKey.isNullOrBlank()) {
         println("Ошибка: Необходимо установить переменные окружения:")
-        println("  - YANDEX_API_KEY (ваш API ключ)")
-        println("  - YANDEX_FOLDER_ID (ID вашей папки в Yandex Cloud)")
-        println("  - MODEL_TYPE (опционально: yandexgpt или yandexgpt-lite, по умолчанию yandexgpt)")
+        println("  - DEEPSEEK_API_KEY (ваш API ключ DeepSeek)")
+        println("  - MODEL (опционально: deepseek-chat, deepseek-reasoner, по умолчанию deepseek-chat)")
         return
     }
 
-    val modelUri = "gpt://$folderId/$modelType/latest"
-    val llmClient = YandexLLMClient(apiKey, modelUri)
     val chatHistory = ChatHistory()
-    val agentManager = AgentManager(apiKey, modelUri, chatHistory)
+    val agentManager = AgentManager(apiKey, model, chatHistory)
 
-    println("=== Локальный сервер для общения с Yandex LLM ===")
-    println("Модель: $modelType")
-    println("JSON Schema: ${if (modelType == "yandexgpt") "включена" else "отключена (lite модель)"}")
-    println("Multi-Agent система: включена")
-    println("Сервер запускается на http://localhost:8080")
-    println("Откройте браузер и перейдите по этому адресу")
+    println("=== Локальный сервер для общения с DeepSeek ===")
+    println("🤖 Модель: $model")
+    println("📋 JSON Schema: включена")
+    println("👥 Multi-Agent система: включена")
+    println("🌡️  Контроль температуры: включен")
+    println("🚀 Сервер запускается на http://localhost:8080")
+    println("🌐 Откройте браузер и перейдите по этому адресу")
     println()
 
     embeddedServer(Netty, port = 8080) {
