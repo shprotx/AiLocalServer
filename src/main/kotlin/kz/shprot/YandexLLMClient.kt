@@ -23,12 +23,12 @@ class YandexLLMClient(
         }
     }
 
-    suspend fun sendMessage(messages: List<Message>): String {
+    suspend fun sendMessage(messages: List<Message>, temperature: Double = 0.6): String {
         val request = YandexCompletionRequest(
             modelUri = modelUri,
             completionOptions = CompletionOptions(
                 stream = false,
-                temperature = 0.6,
+                temperature = temperature,
                 maxTokens = "2000"
             ),
             messages = messages,
@@ -55,8 +55,8 @@ class YandexLLMClient(
         }
     }
 
-    suspend fun sendMessageWithHistory(messages: List<Message>): LLMStructuredResponse {
-        val rawResponse = sendMessage(messages)
+    suspend fun sendMessageWithHistory(messages: List<Message>, temperature: Double = 0.6): LLMStructuredResponse {
+        val rawResponse = sendMessage(messages, temperature)
 
         return runCatching {
             // Парсим JSON

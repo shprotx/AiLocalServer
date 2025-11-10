@@ -101,6 +101,19 @@
             color: rgba(0,0,0,0.87);
         }
 
+        #temperatureInput {
+            width: 80px;
+            padding: 12px 16px;
+            border: 1px solid #BDBDBD;
+            border-radius: 4px;
+            font-size: 16px;
+            outline: none;
+            font-family: inherit;
+            transition: border-color 0.2s;
+            color: rgba(0,0,0,0.87);
+            text-align: center;
+        }
+
         #messageInput:focus {
             border-color: #1976D2;
             border-width: 2px;
@@ -109,6 +122,24 @@
 
         #messageInput::placeholder {
             color: rgba(0,0,0,0.38);
+        }
+
+        #temperatureInput:focus {
+            border-color: #1976D2;
+            border-width: 2px;
+            padding: 11px 15px;
+        }
+
+        .temperature-label {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .temperature-label label {
+            font-size: 12px;
+            color: rgba(0,0,0,0.6);
+            font-weight: 500;
         }
 
         #sendButton {
@@ -317,6 +348,17 @@
                 placeholder="Введите сообщение..."
                 autocomplete="off"
             />
+            <div class="temperature-label">
+                <label for="temperatureInput">Температура</label>
+                <input
+                    type="number"
+                    id="temperatureInput"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value="0.6"
+                />
+            </div>
             <button id="sendButton">Отправить</button>
         </div>
     </div>
@@ -326,6 +368,7 @@
     <script>
         const chatContainer = document.getElementById('chatContainer');
         const messageInput = document.getElementById('messageInput');
+        const temperatureInput = document.getElementById('temperatureInput');
         const sendButton = document.getElementById('sendButton');
 
         // Настройка marked для рендеринга кода
@@ -443,6 +486,10 @@
             const message = messageInput.value.trim();
             if (!message) return;
 
+            const tempValue = temperatureInput.value.trim();
+            const temperature = tempValue !== '' ? parseFloat(tempValue) : 0.6;
+            console.log('Отправляем запрос с температурой:', temperature);
+
             addMessage(message, true);
             messageInput.value = '';
             sendButton.disabled = true;
@@ -453,12 +500,18 @@
             chatContainer.appendChild(loadingDiv);
 
             try {
+                const requestBody = {
+                    message: message,
+                    temperature: temperature
+                };
+                console.log('Request body:', JSON.stringify(requestBody));
+
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ message: message })
+                    body: JSON.stringify(requestBody)
                 });
 
                 const data = await response.json();

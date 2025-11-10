@@ -26,7 +26,8 @@ class AgentManager(
      */
     suspend fun analyzeQuestion(
         userMessage: String,
-        history: List<Message>
+        history: List<Message>,
+        temperature: Double = 0.6
     ): AgentAnalysis {
         val analysisPrompt = """
             Проанализируй вопрос пользователя и определи, нужны ли для ответа специализированные агенты-эксперты.
@@ -72,8 +73,8 @@ class AgentManager(
             add(Message(role = "user", text = userMessage))
         }
 
-        val rawResponse = baseClient.sendMessage(messages)
-        println("ANALYSIS RESPONSE: $rawResponse")
+        val rawResponse = baseClient.sendMessage(messages, temperature)
+        println("ANALYSIS RESPONSE (температура $temperature): $rawResponse")
 
         return runCatching {
             jsonParser.decodeFromString<AgentAnalysis>(rawResponse)
@@ -94,7 +95,8 @@ class AgentManager(
      */
     fun createAgent(
         role: String,
-        specialization: String
+        specialization: String,
+        temperature: Double = 0.6
     ): Agent {
         val baseSystemPrompt = chatHistory.getSystemPrompt()
 
@@ -114,11 +116,16 @@ class AgentManager(
             ВАЖНО: Отвечай в том же JSON формате {"title":"...","message":"..."}
         """.trimIndent()
 
-        return Agent(
+        val agent = Agent(
             id = UUID.randomUUID().toString(),
             role = role,
-            systemPrompt = specializedPrompt
+            systemPrompt = specializedPrompt,
+            temperature = temperature
         )
+
+        println("Создан агент '$role', температура $temperature")
+
+        return agent
     }
 
     /**
@@ -152,8 +159,8 @@ class AgentManager(
             add(Message(role = "user", text = userMessage))
         }
 
-        val rawResponse = baseClient.sendMessage(messages)
-        println("AGENT ${agent.role} RAW RESPONSE: $rawResponse")
+        val rawResponse = baseClient.sendMessage(messages, agent.temperature)
+        println("AGENT ${agent.role} (температура ${agent.temperature}) RAW RESPONSE: $rawResponse")
 
         // Парсим структурированный ответ агента
         val structuredResponse = runCatching {
@@ -179,7 +186,8 @@ class AgentManager(
     suspend fun synthesizeResponse(
         userMessage: String,
         agentResponses: List<AgentResponse>,
-        history: List<Message>
+        history: List<Message>,
+        temperature: Double = 0.6
     ): LLMStructuredResponse {
         val synthesisPrompt = """
             Ты - координатор команды специалистов. Твоя задача - собрать финальный ответ из консультаций экспертов.
@@ -207,8 +215,8 @@ class AgentManager(
             add(Message(role = "user", text = "Собери финальный ответ"))
         }
 
-        val rawResponse = baseClient.sendMessage(messages)
-        println("SYNTHESIS RESPONSE: $rawResponse")
+        val rawResponse = baseClient.sendMessage(messages, temperature)
+        println("SYNTHESIS RESPONSE (температура $temperature): $rawResponse")
 
         return runCatching {
             jsonParser.decodeFromString<LLMStructuredResponse>(rawResponse)
@@ -226,7 +234,8 @@ class AgentManager(
     suspend fun processMessage(
         sessionId: String,
         userMessage: String,
-        history: List<Message>
+        history: List<Message>,
+        temperature: Double = 0.6
     ): MultiAgentResponse {
         // Проверяем явный запрос на создание специалистов
         val explicitRequest = detectExplicitAgentRequest(userMessage)
@@ -237,13 +246,15 @@ class AgentManager(
             explicitRequest
         } else {
             // Автоматический анализ
-            analyzeQuestion(userMessage, history)
+            analyzeQuestion(userMessage, history, temperature)
         }
 
         if (!analysis.needsSpecialists) {
             // Простой ответ от базового агента
+            println("Используется базовый агент, температура $temperature")
             val response = baseClient.sendMessageWithHistory(
-                chatHistory.buildMessagesWithHistory(sessionId, userMessage)
+                chatHistory.buildMessagesWithHistory(sessionId, userMessage),
+                temperature
             )
             return MultiAgentResponse(
                 isMultiAgent = false,
@@ -257,7 +268,7 @@ class AgentManager(
 
         // Создаем специалистов
         val agents = analysis.specialists.map { spec ->
-            createAgent(spec.role, spec.specialization)
+            createAgent(spec.role, spec.specialization, temperature)
         }
 
         // Последовательная консультация
@@ -269,7 +280,7 @@ class AgentManager(
         }
 
         // Синтез финального ответа
-        val synthesis = synthesizeResponse(userMessage, agentResponses, history)
+        val synthesis = synthesizeResponse(userMessage, agentResponses, history, temperature)
 
         return MultiAgentResponse(
             isMultiAgent = true,

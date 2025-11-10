@@ -52,6 +52,10 @@ fun main() {
 
             post("/api/chat") {
                 val request = call.receive<ChatRequest>()
+                println("=== Получен запрос ===")
+                println("Message: ${request.message}")
+                println("Temperature: ${request.temperature}")
+                println("SessionId: ${request.sessionId}")
 
                 // Получаем историю сообщений для контекста
                 val history = chatHistory.getMessages(request.sessionId)
@@ -60,7 +64,8 @@ fun main() {
                 val multiAgentResponse = agentManager.processMessage(
                     sessionId = request.sessionId,
                     userMessage = request.message,
-                    history = history
+                    history = history,
+                    temperature = request.temperature ?: 0.6
                 )
 
                 // Сохраняем сообщения в истории

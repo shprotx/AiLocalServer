@@ -10,6 +10,7 @@ data class Agent(
     val id: String,
     val role: String,
     val systemPrompt: String,
+    val temperature: Double = 0.6,
     val createdAt: Long = System.currentTimeMillis()
 )
 
