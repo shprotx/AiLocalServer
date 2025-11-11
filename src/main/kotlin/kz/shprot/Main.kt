@@ -9,31 +9,44 @@ import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import kz.shprot.models.ChatRequest
-import kz.shprot.models.ChatResponse
+import kz.shprot.models.*
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import java.io.File
 
 fun main() {
-    val apiKey = System.getenv("DEEPSEEK_API_KEY")
-    val model = System.getenv("MODEL") ?: "deepseek-chat"  // По умолчанию deepseek-chat
+    val apiKey = System.getenv("YANDEX_API_KEY")
+    val folderId = System.getenv("YANDEX_FOLDER_ID")
+    val modelType = "yandexgpt"  // По умолчанию полная модель
 
-    if (apiKey.isNullOrBlank()) {
+    if (apiKey.isNullOrBlank() || folderId.isNullOrBlank()) {
         println("Ошибка: Необходимо установить переменные окружения:")
-        println("  - DEEPSEEK_API_KEY (ваш API ключ DeepSeek)")
-        println("  - MODEL (опционально: deepseek-chat, deepseek-reasoner, по умолчанию deepseek-chat)")
+        println("  - YANDEX_API_KEY (ваш API ключ)")
+        println("  - YANDEX_FOLDER_ID (ID вашей папки в Yandex Cloud)")
+        println("  - MODEL_TYPE (опционально: yandexgpt или yandexgpt-lite, по умолчанию yandexgpt)")
         return
     }
 
+    val modelUri = "gpt://$folderId/$modelType/latest"
+    //val llmClient = YandexLLMClient(apiKey, modelUri)
     val chatHistory = ChatHistory()
-    val agentManager = AgentManager(apiKey, model, chatHistory)
+    val agentManager = AgentManager(apiKey, modelUri, chatHistory)
 
-    println("=== Локальный сервер для общения с DeepSeek ===")
-    println("🤖 Модель: $model")
-    println("📋 JSON Schema: включена")
-    println("👥 Multi-Agent система: включена")
-    println("🌡️  Контроль температуры: включен")
-    println("🚀 Сервер запускается на http://localhost:8080")
-    println("🌐 Откройте браузер и перейдите по этому адресу")
+    // OpenRouter клиент для сравнения моделей (опционально)
+    val openRouterApiKey = System.getenv("OPENROUTER_API_KEY")
+    val openRouterClient = if (!openRouterApiKey.isNullOrBlank()) {
+        OpenRouterClient(openRouterApiKey)
+    } else {
+        null
+    }
+
+    println("=== Локальный сервер для общения с Yandex LLM ===")
+    println("Модель: $modelType")
+    println("JSON Schema: ${if (modelType == "yandexgpt") "включена" else "отключена (lite модель)"}")
+    println("Multi-Agent система: включена")
+    println("Model Comparison: ${if (openRouterClient != null) "включено" else "отключено (нет OPENROUTER_API_KEY)"}")
+    println("Сервер запускается на http://localhost:8080")
+    println("Откройте браузер и перейдите по этому адресу")
     println()
 
     embeddedServer(Netty, port = 8080) {
@@ -93,6 +106,76 @@ fun main() {
 
                 call.respond(response)
             }
+
+            // Endpoint для сравнения моделей
+            post("/api/chat/compare") {
+                if (openRouterClient == null) {
+                    call.respond(
+                        HttpStatusCode.ServiceUnavailable,
+                        mapOf("error" to "OpenRouter API key не установлен. Добавьте OPENROUTER_API_KEY в переменные окружения.")
+                    )
+                    return@post
+                }
+
+                val request = call.receive<ModelComparisonRequest>()
+                println("=== Сравнение моделей ===")
+                println("Message: ${request.message}")
+                println("Models: ${request.models}")
+                println("Temperature: ${request.temperature}")
+
+                val startTime = System.currentTimeMillis()
+
+                // Параллельно запрашиваем все модели
+                val results = coroutineScope {
+                    request.models.map { modelId ->
+                        async {
+                            val messages = listOf(
+                                OpenRouterMessage(role = "system", content = "Ты - полезный ассистент."),
+                                OpenRouterMessage(role = "user", content = request.message)
+                            )
+
+                            val detailedResponse = openRouterClient.sendMessageWithMetrics(
+                                modelId = modelId,
+                                messages = messages,
+                                temperature = request.temperature
+                            )
+
+                            // Преобразуем в ModelComparisonResult
+                            ModelComparisonResult(
+                                modelId = modelId,
+                                modelName = PresetModels.getDisplayName(modelId),
+                                response = detailedResponse.content,
+                                responseTimeMs = detailedResponse.responseTimeMs,
+                                inputTokens = detailedResponse.inputTokens,
+                                outputTokens = detailedResponse.outputTokens,
+                                totalTokens = detailedResponse.totalTokens,
+                                estimatedCost = detailedResponse.estimatedCost,
+                                estimatedCostFormatted = formatCost(detailedResponse.estimatedCost),
+                                status = if (detailedResponse.finishReason == "error") "error" else "success"
+                            )
+                        }
+                    }.map { it.await() }
+                }
+
+                val totalTime = System.currentTimeMillis() - startTime
+
+                val response = ModelComparisonResponse(
+                    results = results,
+                    totalTimeMs = totalTime
+                )
+
+                println("Сравнение завершено за ${totalTime}ms")
+                call.respond(response)
+            }
         }
     }.start(wait = true)
+}
+
+// Вспомогательная функция для форматирования стоимости
+private fun formatCost(cost: Double?): String = when {
+    cost == null -> "неизвестно"
+    cost == 0.0 -> "бесплатно"
+    cost < 0.0001 -> String.format("$%.6f", cost)
+    cost < 0.01 -> String.format("$%.4f", cost)
+    else -> String.format("$%.2f", cost)
 }

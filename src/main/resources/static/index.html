@@ -383,6 +383,163 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
+
+        /* Model Comparison Styles */
+        .mode-selector {
+            display: flex;
+            gap: 8px;
+            padding: 12px 20px;
+            background: #F5F5F5;
+            border-bottom: 1px solid #E0E0E0;
+        }
+
+        .mode-button {
+            padding: 8px 16px;
+            border: 1px solid #BDBDBD;
+            background: #FFFFFF;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .mode-button.active {
+            background: #1976D2;
+            color: #FFFFFF;
+            border-color: #1976D2;
+        }
+
+        .comparison-setup {
+            padding: 16px 20px;
+            background: #F5F5F5;
+            border-bottom: 1px solid #E0E0E0;
+            display: none;
+        }
+
+        .comparison-setup.active {
+            display: block;
+        }
+
+        .model-selector-group {
+            margin-bottom: 12px;
+        }
+
+        .model-selector-label {
+            font-size: 13px;
+            font-weight: 500;
+            color: rgba(0,0,0,0.7);
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .model-checkboxes {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 8px;
+        }
+
+        .model-checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: #FFFFFF;
+            border: 1px solid #E0E0E0;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .model-checkbox-item:hover {
+            background: #E3F2FD;
+            border-color: #1976D2;
+        }
+
+        .model-checkbox-item input[type="checkbox"] {
+            cursor: pointer;
+        }
+
+        .model-checkbox-item label {
+            cursor: pointer;
+            font-size: 13px;
+            flex: 1;
+        }
+
+        .comparison-results {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 16px;
+            padding: 16px;
+            background: #FFFFFF;
+            align-self: stretch;
+            max-width: 100%;
+        }
+
+        .model-result-card {
+            background: #FFFFFF;
+            border: 2px solid #E0E0E0;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .model-result-card.error {
+            border-color: #D32F2F;
+        }
+
+        .model-result-header {
+            background: linear-gradient(135deg, #42A5F5 0%, #1976D2 100%);
+            color: #FFFFFF;
+            padding: 12px 16px;
+        }
+
+        .model-result-header h3 {
+            font-size: 16px;
+            font-weight: 500;
+            margin: 0 0 4px 0;
+        }
+
+        .model-result-header .model-id {
+            font-size: 11px;
+            opacity: 0.8;
+            font-family: 'Roboto Mono', monospace;
+        }
+
+        .model-metrics {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            padding: 12px 16px;
+            background: #F5F5F5;
+            border-bottom: 1px solid #E0E0E0;
+        }
+
+        .metric-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .metric-label {
+            font-size: 11px;
+            color: rgba(0,0,0,0.6);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            margin-bottom: 2px;
+        }
+
+        .metric-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: rgba(0,0,0,0.87);
+        }
+
+        .model-response-content {
+            padding: 16px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-size: 14px;
+            line-height: 1.6;
+        }
     </style>
 </head>
 <body>
@@ -390,6 +547,22 @@
         <div class="header">
             <h1>AI Local Server</h1>
             <p>DeepSeek V3</p>
+        </div>
+
+        <!-- Mode Selector -->
+        <div class="mode-selector">
+            <button class="mode-button active" id="chatModeBtn">Чат</button>
+            <button class="mode-button" id="compareModeBtn">Сравнение моделей</button>
+        </div>
+
+        <!-- Model Comparison Setup -->
+        <div class="comparison-setup" id="comparisonSetup">
+            <div class="model-selector-group">
+                <label class="model-selector-label">Выберите модели для сравнения (минимум 2):</label>
+                <div class="model-checkboxes" id="modelCheckboxes">
+                    <!-- Будет заполнено JavaScript -->
+                </div>
+            </div>
         </div>
 
         <div class="chat-container" id="chatContainer"></div>
@@ -536,60 +709,181 @@
             });
         }
 
+        // ============ Model Comparison Feature ============
+
+        const chatModeBtn = document.getElementById('chatModeBtn');
+        const compareModeBtn = document.getElementById('compareModeBtn');
+        const comparisonSetup = document.getElementById('comparisonSetup');
+        const modelCheckboxes = document.getElementById('modelCheckboxes');
+
+        let currentMode = 'chat'; // 'chat' or 'compare'
+
+        // Функция для отображения результатов сравнения
+        function addComparisonResults(results, totalTimeMs) {
+            const resultsContainer = document.createElement('div');
+            resultsContainer.className = 'comparison-results';
+
+            results.forEach(result => {
+                const card = document.createElement('div');
+                card.className = 'model-result-card';
+                if (result.status === 'error') {
+                    card.classList.add('error');
+                }
+
+                // Header
+                const header = document.createElement('div');
+                header.className = 'model-result-header';
+                header.innerHTML = `
+                    <h3>${result.modelName}</h3>
+                    <div class="model-id">${result.modelId}</div>
+                `;
+                card.appendChild(header);
+
+                // Metrics
+                const metrics = document.createElement('div');
+                metrics.className = 'model-metrics';
+                metrics.innerHTML = `
+                    <div class="metric-item">
+                        <div class="metric-label">Время ответа</div>
+                        <div class="metric-value">${result.responseTimeMs}ms</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">Стоимость</div>
+                        <div class="metric-value">${result.estimatedCostFormatted}</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">Входные токены</div>
+                        <div class="metric-value">${result.inputTokens}</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">Выходные токены</div>
+                        <div class="metric-value">${result.outputTokens}</div>
+                    </div>
+                `;
+                card.appendChild(metrics);
+
+                // Response content
+                const content = document.createElement('div');
+                content.className = 'model-response-content';
+                content.innerHTML = marked.parse(result.response);
+                addCopyButtons(content);
+                card.appendChild(content);
+
+                resultsContainer.appendChild(card);
+            });
+
+            chatContainer.appendChild(resultsContainer);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
         async function sendMessage() {
             const message = messageInput.value.trim();
             if (!message) return;
 
             const tempValue = temperatureInput.value.trim();
             const temperature = tempValue !== '' ? parseFloat(tempValue) : 0.6;
-            console.log('Отправляем запрос с температурой:', temperature);
 
-            addMessage(message, true);
-            messageInput.value = '';
-            sendButton.disabled = true;
+            if (currentMode === 'compare') {
+                // Режим сравнения моделей
+                const selectedModels = Array.from(modelCheckboxes.querySelectorAll('input[type="checkbox"]:checked'))
+                    .map(cb => cb.value);
 
-            const loadingDiv = document.createElement('div');
-            loadingDiv.className = 'loading';
+                if (selectedModels.length < 2) {
+                    alert('Выберите минимум 2 модели для сравнения');
+                    return;
+                }
 
-            const loadingText = document.createElement('div');
-            loadingText.className = 'loading-text';
-            loadingText.textContent = 'Генерирую ответ...';
+                console.log('Сравниваем модели:', selectedModels);
 
-            const progressBar = document.createElement('div');
-            progressBar.className = 'progress-bar';
+                addMessage(message, true);
+                messageInput.value = '';
+                sendButton.disabled = true;
 
-            const progressBarFill = document.createElement('div');
-            progressBarFill.className = 'progress-bar-fill';
+                const loadingDiv = document.createElement('div');
+                loadingDiv.className = 'loading';
+                loadingDiv.innerHTML = `
+                    <div class="loading-text">Сравниваю ${selectedModels.length} моделей...</div>
+                    <div class="progress-bar"><div class="progress-bar-fill"></div></div>
+                `;
+                chatContainer.appendChild(loadingDiv);
 
-            progressBar.appendChild(progressBarFill);
-            loadingDiv.appendChild(loadingText);
-            loadingDiv.appendChild(progressBar);
-            chatContainer.appendChild(loadingDiv);
+                try {
+                    const response = await fetch('/api/chat/compare', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            message: message,
+                            models: selectedModels,
+                            temperature: temperature
+                        })
+                    });
 
-            try {
-                const requestBody = {
-                    message: message,
-                    temperature: temperature
-                };
-                console.log('Request body:', JSON.stringify(requestBody));
+                    if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.error || 'Ошибка сервера');
+                    }
 
-                const response = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(requestBody)
-                });
+                    const data = await response.json();
+                    chatContainer.removeChild(loadingDiv);
+                    addComparisonResults(data.results, data.totalTimeMs);
+                } catch (error) {
+                    chatContainer.removeChild(loadingDiv);
+                    addMessage('Ошибка: ' + error.message, false);
+                } finally {
+                    sendButton.disabled = false;
+                    messageInput.focus();
+                }
+            } else {
+                // Обычный режим чата
+                console.log('Отправляем запрос с температурой:', temperature);
 
-                const data = await response.json();
-                chatContainer.removeChild(loadingDiv);
-                addMessage(data.response, false, data.title, data.isMultiAgent, data.agents);
-            } catch (error) {
-                chatContainer.removeChild(loadingDiv);
-                addMessage('Ошибка: ' + error.message, false);
-            } finally {
-                sendButton.disabled = false;
-                messageInput.focus();
+                addMessage(message, true);
+                messageInput.value = '';
+                sendButton.disabled = true;
+
+                const loadingDiv = document.createElement('div');
+                loadingDiv.className = 'loading';
+
+                const loadingText = document.createElement('div');
+                loadingText.className = 'loading-text';
+                loadingText.textContent = 'Генерирую ответ...';
+
+                const progressBar = document.createElement('div');
+                progressBar.className = 'progress-bar';
+
+                const progressBarFill = document.createElement('div');
+                progressBarFill.className = 'progress-bar-fill';
+
+                progressBar.appendChild(progressBarFill);
+                loadingDiv.appendChild(loadingText);
+                loadingDiv.appendChild(progressBar);
+                chatContainer.appendChild(loadingDiv);
+
+                try {
+                    const requestBody = {
+                        message: message,
+                        temperature: temperature
+                    };
+                    console.log('Request body:', JSON.stringify(requestBody));
+
+                    const response = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(requestBody)
+                    });
+
+                    const data = await response.json();
+                    chatContainer.removeChild(loadingDiv);
+                    addMessage(data.response, false, data.title, data.isMultiAgent, data.agents);
+                } catch (error) {
+                    chatContainer.removeChild(loadingDiv);
+                    addMessage('Ошибка: ' + error.message, false);
+                } finally {
+                    sendButton.disabled = false;
+                    messageInput.focus();
+                }
             }
         }
 
@@ -601,6 +895,85 @@
         });
 
         messageInput.focus();
+
+        // Предустановленные модели (из PresetModels.kt)
+        const availableModels = [
+            // Light models
+            { id: 'mistralai/mistral-7b-instruct', name: 'Mistral 7B Instruct', category: 'Легкие (начало)' },
+            { id: 'microsoft/phi-3-mini-128k-instruct', name: 'Microsoft Phi-3 Mini', category: 'Легкие (начало)' },
+            // Medium models
+            { id: 'meta-llama/llama-3.1-70b-instruct', name: 'Llama 3.1 70B Instruct', category: 'Средние (середина)' },
+            { id: 'mistralai/mixtral-8x7b-instruct', name: 'Mixtral 8x7B Instruct', category: 'Средние (середина)' },
+            // Heavy models
+            { id: 'meta-llama/llama-3-70b-instruct', name: 'Llama 3 70B Instruct', category: 'Тяжелые (конец)' },
+            { id: 'qwen/qwen-2.5-72b-instruct', name: 'Qwen 2.5 72B Instruct', category: 'Тяжелые (конец)' }
+        ];
+
+        // Заполняем чекбоксы моделей
+        function populateModelCheckboxes() {
+            const categories = {};
+            availableModels.forEach(model => {
+                if (!categories[model.category]) {
+                    categories[model.category] = [];
+                }
+                categories[model.category].push(model);
+            });
+
+            Object.keys(categories).forEach(category => {
+                const categoryLabel = document.createElement('div');
+                categoryLabel.style.gridColumn = '1 / -1';
+                categoryLabel.style.fontWeight = '600';
+                categoryLabel.style.marginTop = '8px';
+                categoryLabel.style.fontSize = '12px';
+                categoryLabel.style.color = '#1976D2';
+                categoryLabel.textContent = category;
+                modelCheckboxes.appendChild(categoryLabel);
+
+                categories[category].forEach(model => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'model-checkbox-item';
+
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.id = `model-${model.id.replace(/\//g, '-')}`;
+                    checkbox.value = model.id;
+
+                    const label = document.createElement('label');
+                    label.htmlFor = checkbox.id;
+                    label.textContent = model.name;
+
+                    itemDiv.appendChild(checkbox);
+                    itemDiv.appendChild(label);
+                    itemDiv.onclick = (e) => {
+                        if (e.target !== checkbox) {
+                            checkbox.checked = !checkbox.checked;
+                        }
+                    };
+
+                    modelCheckboxes.appendChild(itemDiv);
+                });
+            });
+        }
+
+        populateModelCheckboxes();
+
+        // Переключение режимов
+        chatModeBtn.addEventListener('click', () => {
+            currentMode = 'chat';
+            chatModeBtn.classList.add('active');
+            compareModeBtn.classList.remove('active');
+            comparisonSetup.classList.remove('active');
+            sendButton.textContent = 'Отправить';
+        });
+
+        compareModeBtn.addEventListener('click', () => {
+            currentMode = 'compare';
+            compareModeBtn.classList.add('active');
+            chatModeBtn.classList.remove('active');
+            comparisonSetup.classList.add('active');
+            sendButton.textContent = 'Сравнить';
+        });
+
     </script>
 </body>
 </html>
