@@ -21,6 +21,28 @@ class AgentManager(
     private val baseClient = YandexLLMClient(apiKey, modelUri)
     private val jsonParser = Json { ignoreUnknownKeys = true }
 
+    // Вспомогательная функция для суммирования Usage
+    private fun sumUsage(usages: List<Usage?>): Usage? {
+        val validUsages = usages.filterNotNull()
+        if (validUsages.isEmpty()) return null
+
+        var totalInput = 0
+        var totalCompletion = 0
+        var totalTokens = 0
+
+        validUsages.forEach { usage ->
+            totalInput += usage.inputTextTokens.toIntOrNull() ?: 0
+            totalCompletion += usage.completionTokens.toIntOrNull() ?: 0
+            totalTokens += usage.totalTokens.toIntOrNull() ?: 0
+        }
+
+        return Usage(
+            inputTextTokens = totalInput.toString(),
+            completionTokens = totalCompletion.toString(),
+            totalTokens = totalTokens.toString()
+        )
+    }
+
     /**
      * Анализирует вопрос и определяет нужны ли специалисты
      */
@@ -159,16 +181,16 @@ class AgentManager(
             add(Message(role = "user", text = userMessage))
         }
 
-        val rawResponse = baseClient.sendMessage(messages, agent.temperature)
-        println("AGENT ${agent.role} (температура ${agent.temperature}) RAW RESPONSE: $rawResponse")
+        val messageWithUsage = baseClient.sendMessageWithUsage(messages, agent.temperature)
+        println("AGENT ${agent.role} (температура ${agent.temperature}) RAW RESPONSE: ${messageWithUsage.text}")
 
         // Парсим структурированный ответ агента
         val structuredResponse = runCatching {
-            jsonParser.decodeFromString<LLMStructuredResponse>(rawResponse)
+            jsonParser.decodeFromString<LLMStructuredResponse>(messageWithUsage.text)
         }.getOrElse {
             LLMStructuredResponse(
                 title = agent.role,
-                message = rawResponse
+                message = messageWithUsage.text
             )
         }
 
@@ -176,7 +198,8 @@ class AgentManager(
             agentId = agent.id,
             agentRole = agent.role,
             content = structuredResponse.message,
-            timestamp = System.currentTimeMillis()
+            timestamp = System.currentTimeMillis(),
+            usage = messageWithUsage.usage
         )
     }
 
@@ -188,7 +211,7 @@ class AgentManager(
         agentResponses: List<AgentResponse>,
         history: List<Message>,
         temperature: Double = 0.6
-    ): LLMStructuredResponse {
+    ): StructuredResponseWithUsage {
         val synthesisPrompt = """
             Ты - координатор команды специалистов. Твоя задача - собрать финальный ответ из консультаций экспертов.
 
@@ -215,17 +238,10 @@ class AgentManager(
             add(Message(role = "user", text = "Собери финальный ответ"))
         }
 
-        val rawResponse = baseClient.sendMessage(messages, temperature)
-        println("SYNTHESIS RESPONSE (температура $temperature): $rawResponse")
+        val result = baseClient.sendMessageWithHistoryAndUsage(messages, temperature)
+        println("SYNTHESIS RESPONSE (температура $temperature): ${result.response.message}")
 
-        return runCatching {
-            jsonParser.decodeFromString<LLMStructuredResponse>(rawResponse)
-        }.getOrElse {
-            LLMStructuredResponse(
-                title = "Заключение экспертов",
-                message = rawResponse
-            )
-        }
+        return result
     }
 
     /**
@@ -252,15 +268,16 @@ class AgentManager(
         if (!analysis.needsSpecialists) {
             // Простой ответ от базового агента
             println("Используется базовый агент, температура $temperature")
-            val response = baseClient.sendMessageWithHistory(
+            val result = baseClient.sendMessageWithHistoryAndUsage(
                 chatHistory.buildMessagesWithHistory(sessionId, userMessage),
                 temperature
             )
             return MultiAgentResponse(
                 isMultiAgent = false,
                 agentResponses = emptyList(),
-                synthesis = response.message,
-                title = response.title
+                synthesis = result.response.message,
+                title = result.response.title,
+                totalUsage = result.usage
             )
         }
 
@@ -280,13 +297,18 @@ class AgentManager(
         }
 
         // Синтез финального ответа
-        val synthesis = synthesizeResponse(userMessage, agentResponses, history, temperature)
+        val synthesisResult = synthesizeResponse(userMessage, agentResponses, history, temperature)
+
+        // Суммируем все Usage (от анализа, агентов и синтеза)
+        val allUsages = agentResponses.mapNotNull { it.usage } + listOfNotNull(synthesisResult.usage)
+        val totalUsage = sumUsage(allUsages)
 
         return MultiAgentResponse(
             isMultiAgent = true,
             agentResponses = agentResponses,
-            synthesis = synthesis.message,
-            title = synthesis.title
+            synthesis = synthesisResult.response.message,
+            title = synthesisResult.response.title,
+            totalUsage = totalUsage
         )
     }
 

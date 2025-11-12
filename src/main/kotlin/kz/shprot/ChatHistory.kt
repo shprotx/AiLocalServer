@@ -1,10 +1,39 @@
 package kz.shprot
 
 import kz.shprot.models.Message
+import kz.shprot.models.Usage
+import kz.shprot.models.SessionTokenStats
 import java.util.concurrent.ConcurrentHashMap
 
+/**
+ * Информация о сообщении с токенами
+ */
+data class MessageWithTokens(
+    val message: Message,
+    val usage: Usage? = null
+)
+
 class ChatHistory {
-    private val sessions = ConcurrentHashMap<String, MutableList<Message>>()
+    private val sessions = ConcurrentHashMap<String, MutableList<MessageWithTokens>>()
+
+    // Получение модели из URI для расчета стоимости
+    private fun extractModelName(modelUri: String): String {
+        return when {
+            modelUri.contains("yandexgpt-lite") -> "yandexgpt-lite"
+            modelUri.contains("yandexgpt") -> "yandexgpt"
+            else -> "unknown"
+        }
+    }
+
+    // Расчет стоимости в рублях
+    private fun calculateCost(totalTokens: Int, modelName: String): Double {
+        val costPer1000 = when (modelName) {
+            "yandexgpt" -> 0.80 // 0.80 руб за 1000 токенов для полной модели
+            "yandexgpt-lite" -> 0.16 // 0.16 руб за 1000 токенов для lite
+            else -> 0.50 // Default fallback
+        }
+        return (totalTokens / 1000.0) * costPer1000
+    }
 
     fun getSystemPrompt(): String {
         return """Ты - вдумчивый AI-ассистент и консультант, который ведет естественный диалог с пользователем.
@@ -109,12 +138,19 @@ class ChatHistory {
         """.trimMargin()
     }
 
-    fun addMessage(sessionId: String, role: String, text: String) {
+    fun addMessage(sessionId: String, role: String, text: String, usage: Usage? = null) {
         val messages = sessions.getOrPut(sessionId) { mutableListOf() }
-        messages.add(Message(role = role, text = text))
+        messages.add(MessageWithTokens(
+            message = Message(role = role, text = text),
+            usage = usage
+        ))
     }
 
     fun getMessages(sessionId: String): List<Message> {
+        return sessions[sessionId]?.map { it.message } ?: emptyList()
+    }
+
+    fun getMessagesWithTokens(sessionId: String): List<MessageWithTokens> {
         return sessions[sessionId]?.toList() ?: emptyList()
     }
 
@@ -131,6 +167,37 @@ class ChatHistory {
         messages.add(Message(role = "user", text = userMessage))
 
         return messages
+    }
+
+    /**
+     * Получает общую статистику токенов для сессии
+     */
+    fun getSessionStats(sessionId: String, modelUri: String): SessionTokenStats {
+        val messagesWithTokens = getMessagesWithTokens(sessionId)
+        val modelName = extractModelName(modelUri)
+
+        var totalInput = 0
+        var totalOutput = 0
+        var messageCount = 0
+
+        messagesWithTokens.forEach { msgWithTokens ->
+            msgWithTokens.usage?.let { usage ->
+                totalInput += usage.inputTextTokens.toIntOrNull() ?: 0
+                totalOutput += usage.completionTokens.toIntOrNull() ?: 0
+                messageCount++
+            }
+        }
+
+        val totalTokens = totalInput + totalOutput
+        val totalCost = calculateCost(totalTokens, modelName)
+
+        return SessionTokenStats(
+            totalInputTokens = totalInput,
+            totalOutputTokens = totalOutput,
+            totalTokens = totalTokens,
+            totalCostRub = totalCost,
+            messageCount = messageCount
+        )
     }
 
     fun clearSession(sessionId: String) {

@@ -13,6 +13,34 @@ import kz.shprot.models.ChatRequest
 import kz.shprot.models.ChatResponse
 import java.io.File
 
+// Вспомогательная функция для расчета стоимости
+fun calculateCost(totalTokens: Int, modelType: String): Double {
+    val costPer1000 = when (modelType) {
+        "yandexgpt" -> 0.80 // 0.80 руб за 1000 токенов для полной модели
+        "yandexgpt-lite" -> 0.16 // 0.16 руб за 1000 токенов для lite
+        else -> 0.50 // Default fallback
+    }
+    return (totalTokens / 1000.0) * costPer1000
+}
+
+// Конвертация Usage в TokenUsageInfo
+fun usageToTokenInfo(usage: kz.shprot.models.Usage?, modelType: String): kz.shprot.models.TokenUsageInfo? {
+    usage ?: return null
+
+    val inputTokens = usage.inputTextTokens.toIntOrNull() ?: 0
+    val outputTokens = usage.completionTokens.toIntOrNull() ?: 0
+    val totalTokens = usage.totalTokens.toIntOrNull() ?: 0
+    val cost = calculateCost(totalTokens, modelType)
+
+    return kz.shprot.models.TokenUsageInfo(
+        inputTokens = inputTokens,
+        outputTokens = outputTokens,
+        totalTokens = totalTokens,
+        estimatedCostRub = cost,
+        modelName = modelType
+    )
+}
+
 fun main() {
     val apiKey = System.getenv("YANDEX_API_KEY")
     val folderId = System.getenv("YANDEX_FOLDER_ID")
@@ -68,9 +96,12 @@ fun main() {
                     temperature = request.temperature ?: 0.6
                 )
 
+                // Конвертируем Usage в TokenUsageInfo
+                val tokenInfo = usageToTokenInfo(multiAgentResponse.totalUsage, modelType)
+
                 // Сохраняем сообщения в истории
                 chatHistory.addMessage(request.sessionId, "user", request.message)
-                chatHistory.addMessage(request.sessionId, "assistant", multiAgentResponse.synthesis)
+                chatHistory.addMessage(request.sessionId, "assistant", multiAgentResponse.synthesis, multiAgentResponse.totalUsage)
 
                 // Преобразуем в ChatResponse
                 val response = if (multiAgentResponse.isMultiAgent) {
@@ -83,14 +114,16 @@ fun main() {
                                 role = it.agentRole,
                                 content = it.content
                             )
-                        }
+                        },
+                        tokenUsage = tokenInfo
                     )
                 } else {
                     ChatResponse(
                         response = multiAgentResponse.synthesis,
                         title = multiAgentResponse.title,
                         isMultiAgent = false,
-                        agents = null
+                        agents = null,
+                        tokenUsage = tokenInfo
                     )
                 }
 

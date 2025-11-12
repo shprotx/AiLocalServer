@@ -10,6 +10,22 @@ import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.Json
 import kz.shprot.models.*
 
+/**
+ * Результат API вызова с текстом и информацией о токенах
+ */
+data class MessageWithUsage(
+    val text: String,
+    val usage: Usage?
+)
+
+/**
+ * Структурированный ответ с информацией о токенах
+ */
+data class StructuredResponseWithUsage(
+    val response: LLMStructuredResponse,
+    val usage: Usage?
+)
+
 class YandexLLMClient(
     private val apiKey: String,
     private val modelUri: String,
@@ -23,7 +39,17 @@ class YandexLLMClient(
         }
     }
 
+    /**
+     * Отправляет сообщение и возвращает только текст (для обратной совместимости)
+     */
     suspend fun sendMessage(messages: List<Message>, temperature: Double = 0.6): String {
+        return sendMessageWithUsage(messages, temperature).text
+    }
+
+    /**
+     * Отправляет сообщение и возвращает текст + информацию о токенах
+     */
+    suspend fun sendMessageWithUsage(messages: List<Message>, temperature: Double = 0.6): MessageWithUsage {
         val request = YandexCompletionRequest(
             modelUri = modelUri,
             completionOptions = CompletionOptions(
@@ -47,28 +73,45 @@ class YandexLLMClient(
 
             // Логируем сырой ответ от модели (самое раннее место)
             println("RAW API RESPONSE: $rawText")
+            println("TOKEN USAGE: input=${response.result.usage.inputTextTokens}, output=${response.result.usage.completionTokens}, total=${response.result.usage.totalTokens}")
 
-            rawText
+            MessageWithUsage(
+                text = rawText,
+                usage = response.result.usage
+            )
         }.getOrElse { e ->
             println("API ERROR: ${e.message}")
-            "Ошибка при обращении к API: ${e.message}"
+            MessageWithUsage(
+                text = "Ошибка при обращении к API: ${e.message}",
+                usage = null
+            )
         }
     }
 
     suspend fun sendMessageWithHistory(messages: List<Message>, temperature: Double = 0.6): LLMStructuredResponse {
-        val rawResponse = sendMessage(messages, temperature)
+        val result = sendMessageWithHistoryAndUsage(messages, temperature)
+        return result.response
+    }
 
-        return runCatching {
+    suspend fun sendMessageWithHistoryAndUsage(messages: List<Message>, temperature: Double = 0.6): StructuredResponseWithUsage {
+        val messageWithUsage = sendMessageWithUsage(messages, temperature)
+
+        val structuredResponse = runCatching {
             // Парсим JSON
-            println("resp = $rawResponse")
-            Json.decodeFromString<LLMStructuredResponse>(rawResponse)
+            println("resp = ${messageWithUsage.text}")
+            Json.decodeFromString<LLMStructuredResponse>(messageWithUsage.text)
         }.getOrElse {
             // Если не удалось распарсить, возвращаем как есть
             LLMStructuredResponse(
                 title = "Ошибка парсинга",
-                message = rawResponse
+                message = messageWithUsage.text
             )
         }
+
+        return StructuredResponseWithUsage(
+            response = structuredResponse,
+            usage = messageWithUsage.usage
+        )
     }
 
     fun close() {

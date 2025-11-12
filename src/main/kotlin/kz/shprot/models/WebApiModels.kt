@@ -14,13 +14,32 @@ data class ChatResponse(
     val response: String,
     val title: String? = null,
     val isMultiAgent: Boolean = false,
-    val agents: List<AgentResponseData>? = null
+    val agents: List<AgentResponseData>? = null,
+    val tokenUsage: TokenUsageInfo? = null
 )
 
 @Serializable
 data class AgentResponseData(
     val role: String,
     val content: String
+)
+
+@Serializable
+data class TokenUsageInfo(
+    val inputTokens: Int,
+    val outputTokens: Int,
+    val totalTokens: Int,
+    val estimatedCostRub: Double,
+    val modelName: String
+)
+
+@Serializable
+data class SessionTokenStats(
+    val totalInputTokens: Int,
+    val totalOutputTokens: Int,
+    val totalTokens: Int,
+    val totalCostRub: Double,
+    val messageCount: Int
 )
 
 @Serializable

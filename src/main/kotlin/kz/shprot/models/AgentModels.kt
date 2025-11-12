@@ -43,7 +43,8 @@ data class AgentResponse(
     val agentId: String,
     val agentRole: String,
     val content: String,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    val usage: Usage? = null
 )
 
 /**
@@ -54,5 +55,6 @@ data class MultiAgentResponse(
     val isMultiAgent: Boolean,
     val agentResponses: List<AgentResponse>,
     val synthesis: String,
-    val title: String
+    val title: String,
+    val totalUsage: Usage? = null
 )
