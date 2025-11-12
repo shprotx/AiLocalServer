@@ -476,6 +476,80 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
+
+        /* Стили для загрузки файлов */
+        .file-upload-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            padding: 8px 12px;
+            background: #F5F5F5;
+            border-radius: 4px;
+            border: 1px solid #E0E0E0;
+        }
+
+        .file-upload-label {
+            cursor: pointer;
+            padding: 6px 12px;
+            background: #1976D2;
+            color: #FFFFFF;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: background 0.2s;
+            white-space: nowrap;
+        }
+
+        .file-upload-label:hover {
+            background: #1565C0;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .file-name {
+            flex: 1;
+            font-size: 13px;
+            color: rgba(0,0,0,0.7);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .file-name.empty {
+            color: rgba(0,0,0,0.4);
+            font-style: italic;
+        }
+
+        .clear-file-button {
+            padding: 4px 8px;
+            background: #F44336;
+            color: #FFFFFF;
+            border: none;
+            border-radius: 3px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .clear-file-button:hover {
+            background: #D32F2F;
+        }
+
+        .file-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            background: #E3F2FD;
+            color: #1976D2;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-right: 8px;
+        }
     </style>
 </head>
 <body>
@@ -504,6 +578,15 @@
         </div>
 
         <div class="chat-container" id="chatContainer"></div>
+
+        <div class="file-upload-container" id="fileUploadContainer">
+            <label for="fileInput" class="file-upload-label">
+                📎 Файл
+            </label>
+            <input type="file" id="fileInput" accept=".txt,.md,.json,.xml,.html,.css,.js,.py,.java,.kt,.c,.cpp,.h,.log,.csv,.yaml,.yml" />
+            <span class="file-name empty" id="fileName">Файл не выбран</span>
+            <button class="clear-file-button" id="clearFileButton" style="display: none;">Очистить</button>
+        </div>
 
         <div class="input-container">
             <input
@@ -535,6 +618,9 @@
         const messageInput = document.getElementById('messageInput');
         const temperatureInput = document.getElementById('temperatureInput');
         const sendButton = document.getElementById('sendButton');
+        const fileInput = document.getElementById('fileInput');
+        const fileName = document.getElementById('fileName');
+        const clearFileButton = document.getElementById('clearFileButton');
 
         // Счетчики токенов для сессии
         let sessionStats = {
@@ -543,6 +629,10 @@
             totalTokens: 0,
             totalCost: 0
         };
+
+        // Хранение содержимого загруженного файла
+        let currentFileContent = null;
+        let currentFileName = null;
 
         // Настройка marked для рендеринга кода
         marked.setOptions({
@@ -722,15 +812,60 @@
             });
         }
 
+        // Обработка выбора файла
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            currentFileName = file.name;
+            fileName.textContent = file.name;
+            fileName.classList.remove('empty');
+            clearFileButton.style.display = 'inline-block';
+
+            // Читаем содержимое файла
+            try {
+                const text = await file.text();
+                currentFileContent = text;
+                console.log('Файл загружен:', file.name, 'Размер:', text.length, 'символов');
+            } catch (error) {
+                console.error('Ошибка чтения файла:', error);
+                alert('Не удалось прочитать файл: ' + error.message);
+                clearFile();
+            }
+        });
+
+        // Очистка файла
+        clearFileButton.addEventListener('click', () => {
+            clearFile();
+        });
+
+        function clearFile() {
+            fileInput.value = '';
+            currentFileContent = null;
+            currentFileName = null;
+            fileName.textContent = 'Файл не выбран';
+            fileName.classList.add('empty');
+            clearFileButton.style.display = 'none';
+        }
+
         async function sendMessage() {
             const message = messageInput.value.trim();
-            if (!message) return;
+            const hasFile = currentFileContent !== null;
+
+            // Должно быть либо сообщение, либо файл
+            if (!message && !hasFile) return;
 
             const tempValue = temperatureInput.value.trim();
             const temperature = tempValue !== '' ? parseFloat(tempValue) : 0.6;
             console.log('Отправляем запрос с температурой:', temperature);
 
-            addMessage(message, true);
+            // Формируем сообщение для отображения
+            let displayMessage = message || '(анализ файла)';
+            if (hasFile) {
+                displayMessage = (message || 'Проанализируй содержимое файла') + ` 📎 ${currentFileName}`;
+            }
+
+            addMessage(displayMessage, true);
             messageInput.value = '';
             sendButton.disabled = true;
 
@@ -753,11 +888,18 @@
             chatContainer.appendChild(loadingDiv);
 
             try {
+                // Формируем полное сообщение с содержимым файла
+                let fullMessage = message;
+                if (hasFile) {
+                    const filePrompt = message || 'Проанализируй содержимое файла и дай краткое резюме.';
+                    fullMessage = `${filePrompt}\n\n--- Содержимое файла "${currentFileName}" ---\n${currentFileContent}\n--- Конец файла ---`;
+                }
+
                 const requestBody = {
-                    message: message,
+                    message: fullMessage,
                     temperature: temperature
                 };
-                console.log('Request body:', JSON.stringify(requestBody));
+                console.log('Request body:', JSON.stringify(requestBody).substring(0, 200) + '...');
 
                 const response = await fetch('/api/chat', {
                     method: 'POST',
@@ -770,6 +912,11 @@
                 const data = await response.json();
                 chatContainer.removeChild(loadingDiv);
                 addMessage(data.response, false, data.title, data.isMultiAgent, data.agents, data.tokenUsage);
+
+                // Очищаем файл после отправки
+                if (hasFile) {
+                    clearFile();
+                }
             } catch (error) {
                 chatContainer.removeChild(loadingDiv);
                 addMessage('Ошибка: ' + error.message, false);
