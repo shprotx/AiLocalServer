@@ -14,7 +14,7 @@ data class YandexCompletionRequest(
 data class CompletionOptions(
     val stream: Boolean = false,
     val temperature: Double = 0.6,
-    val maxTokens: String = "2000"
+    //val maxTokens: String = "2000"
 )
 
 @Serializable
@@ -65,4 +65,25 @@ data class JsonSchemaProperty(
     val type: String,
     val description: String? = null,
     val title: String? = null
+)
+
+/**
+ * Модель ошибки от Yandex API
+ */
+@Serializable
+data class YandexApiError(
+    val error: ErrorDetails
+)
+
+@Serializable
+data class ErrorDetails(
+    val code: Int? = null,
+    val message: String,
+    val details: List<ErrorDetail>? = null
+)
+
+@Serializable
+data class ErrorDetail(
+    val type: String? = null,
+    val message: String? = null
 )

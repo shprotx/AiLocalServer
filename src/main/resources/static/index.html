@@ -826,7 +826,23 @@
             try {
                 const text = await file.text();
                 currentFileContent = text;
-                console.log('Файл загружен:', file.name, 'Размер:', text.length, 'символов');
+
+                const charCount = text.length;
+                const approxTokens = Math.ceil(charCount / 3); // Примерная оценка: 1 токен ≈ 3 символа
+
+                console.log('Файл загружен:', file.name, 'Размер:', charCount, 'символов, ~', approxTokens, 'токенов');
+
+                // Предупреждаем о больших файлах
+                if (approxTokens > 4000) {
+                    const warning = `⚠️ Внимание! Файл большой (~${approxTokens.toLocaleString()} токенов).\n\n` +
+                        `Рекомендуемый лимит: ~6000 токенов (с учетом промпта и ответа).\n\n` +
+                        `Если файл слишком большой, API вернет ошибку. Хотите продолжить?`;
+
+                    if (!confirm(warning)) {
+                        clearFile();
+                        return;
+                    }
+                }
             } catch (error) {
                 console.error('Ошибка чтения файла:', error);
                 alert('Не удалось прочитать файл: ' + error.message);
@@ -893,6 +909,9 @@
                 if (hasFile) {
                     const filePrompt = message || 'Проанализируй содержимое файла и дай краткое резюме.';
                     fullMessage = `${filePrompt}\n\n--- Содержимое файла "${currentFileName}" ---\n${currentFileContent}\n--- Конец файла ---`;
+
+                    // Очищаем файл СРАЗУ после формирования сообщения, чтобы он не отправился повторно
+                    clearFile();
                 }
 
                 const requestBody = {
@@ -912,11 +931,6 @@
                 const data = await response.json();
                 chatContainer.removeChild(loadingDiv);
                 addMessage(data.response, false, data.title, data.isMultiAgent, data.agents, data.tokenUsage);
-
-                // Очищаем файл после отправки
-                if (hasFile) {
-                    clearFile();
-                }
             } catch (error) {
                 chatContainer.removeChild(loadingDiv);
                 addMessage('Ошибка: ' + error.message, false);

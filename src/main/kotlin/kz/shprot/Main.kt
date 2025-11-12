@@ -99,9 +99,20 @@ fun main() {
                 // Конвертируем Usage в TokenUsageInfo
                 val tokenInfo = usageToTokenInfo(multiAgentResponse.totalUsage, modelType)
 
-                // Сохраняем сообщения в истории
-                chatHistory.addMessage(request.sessionId, "user", request.message)
-                chatHistory.addMessage(request.sessionId, "assistant", multiAgentResponse.synthesis, multiAgentResponse.totalUsage)
+                // Проверяем, не является ли ответ ошибкой
+                val isError = multiAgentResponse.synthesis.startsWith("⚠️") ||
+                              multiAgentResponse.synthesis.startsWith("❌") ||
+                              multiAgentResponse.synthesis.contains("Ошибка API:", ignoreCase = true) ||
+                              multiAgentResponse.totalUsage == null
+
+                // Сохраняем сообщения в истории ТОЛЬКО если НЕ было ошибки
+                // Иначе огромное сообщение с файлом будет отправляться снова и снова
+                if (!isError) {
+                    chatHistory.addMessage(request.sessionId, "user", request.message)
+                    chatHistory.addMessage(request.sessionId, "assistant", multiAgentResponse.synthesis, multiAgentResponse.totalUsage)
+                } else {
+                    println("⚠️ Ошибка API - сообщение НЕ сохранено в историю чата")
+                }
 
                 // Преобразуем в ChatResponse
                 val response = if (multiAgentResponse.isMultiAgent) {
