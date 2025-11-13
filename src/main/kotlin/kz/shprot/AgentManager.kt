@@ -251,7 +251,9 @@ class AgentManager(
         sessionId: String,
         userMessage: String,
         history: List<Message>,
-        temperature: Double = 0.6
+        temperature: Double = 0.6,
+        compressContext: Boolean = false,
+        compressSystemPrompt: Boolean = false
     ): MultiAgentResponse {
         // Проверяем явный запрос на создание специалистов
         val explicitRequest = detectExplicitAgentRequest(userMessage)
@@ -268,8 +270,15 @@ class AgentManager(
         if (!analysis.needsSpecialists) {
             // Простой ответ от базового агента
             println("Используется базовый агент, температура $temperature")
+            val messages = if (compressContext) {
+                chatHistory.buildMessagesWithCompression(
+                    sessionId, userMessage, compressContext, compressSystemPrompt
+                )
+            } else {
+                chatHistory.buildMessagesWithHistory(sessionId, userMessage)
+            }
             val result = baseClient.sendMessageWithHistoryAndUsage(
-                chatHistory.buildMessagesWithHistory(sessionId, userMessage),
+                messages,
                 temperature
             )
             return MultiAgentResponse(

@@ -13,8 +13,16 @@ data class MessageWithTokens(
     val usage: Usage? = null
 )
 
+/**
+ * Контекст сессии с информацией о сжатии
+ */
+data class SessionContext(
+    val messages: MutableList<MessageWithTokens> = mutableListOf(),
+    var compressionInfo: CompressionInfo? = null
+)
+
 class ChatHistory {
-    private val sessions = ConcurrentHashMap<String, MutableList<MessageWithTokens>>()
+    private val sessions = ConcurrentHashMap<String, SessionContext>()
 
     // Получение модели из URI для расчета стоимости
     private fun extractModelName(modelUri: String): String {
@@ -139,19 +147,19 @@ class ChatHistory {
     }
 
     fun addMessage(sessionId: String, role: String, text: String, usage: Usage? = null) {
-        val messages = sessions.getOrPut(sessionId) { mutableListOf() }
-        messages.add(MessageWithTokens(
+        val context = sessions.getOrPut(sessionId) { SessionContext() }
+        context.messages.add(MessageWithTokens(
             message = Message(role = role, text = text),
             usage = usage
         ))
     }
 
     fun getMessages(sessionId: String): List<Message> {
-        return sessions[sessionId]?.map { it.message } ?: emptyList()
+        return sessions[sessionId]?.messages?.map { it.message } ?: emptyList()
     }
 
     fun getMessagesWithTokens(sessionId: String): List<MessageWithTokens> {
-        return sessions[sessionId]?.toList() ?: emptyList()
+        return sessions[sessionId]?.messages?.toList() ?: emptyList()
     }
 
     fun buildMessagesWithHistory(sessionId: String, userMessage: String): List<Message> {
@@ -197,6 +205,100 @@ class ChatHistory {
             totalTokens = totalTokens,
             totalCostRub = totalCost,
             messageCount = messageCount
+        )
+    }
+
+    /**
+     * Получает информацию о сжатии для сессии
+     */
+    fun getCompressionInfo(sessionId: String): CompressionInfo? {
+        return sessions[sessionId]?.compressionInfo
+    }
+
+    /**
+     * Обновляет информацию о сжатии для сессии
+     */
+    fun updateCompressionInfo(sessionId: String, compressionInfo: CompressionInfo?) {
+        val context = sessions.getOrPut(sessionId) { SessionContext() }
+        context.compressionInfo = compressionInfo
+    }
+
+    /**
+     * Строит сообщения с учетом сжатия контекста
+     *
+     * @param sessionId ID сессии
+     * @param userMessage Новое сообщение пользователя
+     * @param useCompression Использовать ли сжатие
+     * @param compressSystemPrompt Сжать ли системный промпт
+     * @return Список сообщений для отправки в LLM
+     */
+    fun buildMessagesWithCompression(
+        sessionId: String,
+        userMessage: String,
+        useCompression: Boolean,
+        compressSystemPrompt: Boolean
+    ): List<Message> {
+        val messages = mutableListOf<Message>()
+        val context = sessions[sessionId]
+
+        // Добавляем system prompt (сжатый или полный)
+        val systemPrompt = if (compressSystemPrompt && context?.compressionInfo?.compressedSystemPrompt != null) {
+            context.compressionInfo!!.compressedSystemPrompt!!
+        } else {
+            getSystemPrompt()
+        }
+        messages.add(Message(role = "system", text = systemPrompt))
+
+        // Если есть сжатие и оно включено
+        if (useCompression && context?.compressionInfo != null) {
+            val compression = context.compressionInfo!!
+
+            // Добавляем сжатое резюме как системное сообщение
+            messages.add(Message(
+                role = "system",
+                text = "Контекст предыдущего диалога:\n${compression.compressedSummary}"
+            ))
+
+            // Добавляем только несжатые сообщения (последние N)
+            val allMessages = context.messages.map { it.message }
+            val uncompressedMessages = allMessages.subList(
+                compression.compressedUpToIndex + 1,
+                allMessages.size
+            )
+            messages.addAll(uncompressedMessages)
+        } else {
+            // Используем полную историю
+            messages.addAll(getMessages(sessionId))
+        }
+
+        // Добавляем текущее сообщение пользователя
+        messages.add(Message(role = "user", text = userMessage))
+
+        return messages
+    }
+
+    /**
+     * Вычисляет использование контекстного окна для текущего запроса
+     *
+     * @param sessionId ID сессии
+     * @param currentRequestTokens Количество токенов в текущем запросе
+     * @param isCompressed Используется ли сжатие
+     * @param maxContextWindow Максимальный размер контекстного окна модели
+     * @return Информация об использовании контекстного окна
+     */
+    fun calculateContextWindowUsage(
+        sessionId: String,
+        currentRequestTokens: Int,
+        isCompressed: Boolean,
+        maxContextWindow: Int = 8000
+    ): kz.shprot.models.ContextWindowUsage {
+        val usagePercent = (currentRequestTokens.toDouble() / maxContextWindow) * 100.0
+
+        return kz.shprot.models.ContextWindowUsage(
+            currentTokens = currentRequestTokens,
+            maxTokens = maxContextWindow,
+            usagePercent = usagePercent.coerceIn(0.0, 100.0),
+            isCompressed = isCompressed
         )
     }
 

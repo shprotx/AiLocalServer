@@ -57,6 +57,7 @@ fun main() {
     val modelUri = "gpt://$folderId/$modelType/latest"
     val llmClient = YandexLLMClient(apiKey, modelUri)
     val chatHistory = ChatHistory()
+    val contextCompressor = ContextCompressor(llmClient)
     val agentManager = AgentManager(apiKey, modelUri, chatHistory)
 
     println("=== Локальный сервер для общения с Yandex LLM ===")
@@ -84,20 +85,93 @@ fun main() {
                 println("Message: ${request.message}")
                 println("Temperature: ${request.temperature}")
                 println("SessionId: ${request.sessionId}")
+                println("Compress Context: ${request.compressContext}")
+                println("Compress System Prompt: ${request.compressSystemPrompt}")
 
                 // Получаем историю сообщений для контекста
                 val history = chatHistory.getMessages(request.sessionId)
+
+                // Обработка сжатия контекста (если включено)
+                println("=== Проверка сжатия ===")
+                println("Тумблер compressContext: ${request.compressContext}")
+                println("Количество сообщений в истории: ${history.size}")
+
+                if (request.compressContext && history.size >= 10) {
+                    val currentCompression = chatHistory.getCompressionInfo(request.sessionId)
+                    val needsCompression = currentCompression == null ||
+                        (history.size - (currentCompression.compressedUpToIndex + 1)) >= 10
+
+                    println("Есть текущее сжатие: ${currentCompression != null}")
+                    if (currentCompression != null) {
+                        println("Сжато до индекса: ${currentCompression.compressedUpToIndex}")
+                    }
+                    println("Нужно сжатие: $needsCompression")
+
+                    if (needsCompression) {
+                        println("=== Выполняется сжатие контекста ===")
+                        println("Количество сообщений в истории: ${history.size}")
+
+                        // Создаем или обновляем сжатие
+                        val newCompression = contextCompressor.createOrUpdateCompression(
+                            currentMessages = history,
+                            existingCompression = currentCompression,
+                            keepLastN = 1,  // Оставляем только последнее сообщение
+                            temperature = 0.3
+                        )
+
+                        // Сжимаем системный промпт (если нужно и еще не сжат)
+                        if (request.compressSystemPrompt && newCompression != null &&
+                            newCompression.compressedSystemPrompt == null) {
+                            println("=== Выполняется сжатие системного промпта ===")
+                            val compressedPrompt = contextCompressor.compressSystemPrompt(
+                                chatHistory.getSystemPrompt(),
+                                temperature = 0.3
+                            )
+                            chatHistory.updateCompressionInfo(
+                                request.sessionId,
+                                newCompression.copy(compressedSystemPrompt = compressedPrompt)
+                            )
+                        } else if (newCompression != null) {
+                            chatHistory.updateCompressionInfo(request.sessionId, newCompression)
+                        }
+
+                        println("=== Сжатие контекста завершено ===")
+                    }
+                } else {
+                    println("Условие для сжатия НЕ выполнено (compressContext=${request.compressContext}, history.size=${history.size})")
+                }
+
+                // Проверяем, будет ли использоваться сжатие в этом запросе
+                val compressionExists = chatHistory.getCompressionInfo(request.sessionId)
+                println("=== Использование сжатия в текущем запросе ===")
+                println("Сжатие существует: ${compressionExists != null}")
+                println("Будет использовано: ${request.compressContext && compressionExists != null}")
 
                 // Обрабатываем сообщение через multi-agent систему
                 val multiAgentResponse = agentManager.processMessage(
                     sessionId = request.sessionId,
                     userMessage = request.message,
                     history = history,
-                    temperature = request.temperature ?: 0.6
+                    temperature = request.temperature ?: 0.6,
+                    compressContext = request.compressContext,
+                    compressSystemPrompt = request.compressSystemPrompt
                 )
 
                 // Конвертируем Usage в TokenUsageInfo
                 val tokenInfo = usageToTokenInfo(multiAgentResponse.totalUsage, modelType)
+
+                // Вычисляем использование контекстного окна
+                val contextWindowUsage = multiAgentResponse.totalUsage?.let { usage ->
+                    val inputTokens = usage.inputTextTokens.toIntOrNull() ?: 0
+                    // Проверяем, действительно ли сжатие используется (не просто включен тумблер)
+                    val isActuallyCompressed = request.compressContext &&
+                        chatHistory.getCompressionInfo(request.sessionId) != null
+                    chatHistory.calculateContextWindowUsage(
+                        sessionId = request.sessionId,
+                        currentRequestTokens = inputTokens,
+                        isCompressed = isActuallyCompressed
+                    )
+                }
 
                 // Проверяем, не является ли ответ ошибкой
                 val isError = multiAgentResponse.synthesis.startsWith("⚠️") ||
@@ -126,7 +200,8 @@ fun main() {
                                 content = it.content
                             )
                         },
-                        tokenUsage = tokenInfo
+                        tokenUsage = tokenInfo,
+                        contextWindowUsage = contextWindowUsage
                     )
                 } else {
                     ChatResponse(
@@ -134,7 +209,8 @@ fun main() {
                         title = multiAgentResponse.title,
                         isMultiAgent = false,
                         agents = null,
-                        tokenUsage = tokenInfo
+                        tokenUsage = tokenInfo,
+                        contextWindowUsage = contextWindowUsage
                     )
                 }
 

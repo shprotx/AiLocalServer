@@ -6,7 +6,9 @@ import kotlinx.serialization.Serializable
 data class ChatRequest(
     val message: String,
     val sessionId: String = "default",
-    val temperature: Double? = 0.6
+    val temperature: Double? = 0.6,
+    val compressContext: Boolean = false,
+    val compressSystemPrompt: Boolean = false
 )
 
 @Serializable
@@ -15,7 +17,8 @@ data class ChatResponse(
     val title: String? = null,
     val isMultiAgent: Boolean = false,
     val agents: List<AgentResponseData>? = null,
-    val tokenUsage: TokenUsageInfo? = null
+    val tokenUsage: TokenUsageInfo? = null,
+    val contextWindowUsage: ContextWindowUsage? = null
 )
 
 @Serializable
@@ -40,6 +43,14 @@ data class SessionTokenStats(
     val totalTokens: Int,
     val totalCostRub: Double,
     val messageCount: Int
+)
+
+@Serializable
+data class ContextWindowUsage(
+    val currentTokens: Int,
+    val maxTokens: Int,
+    val usagePercent: Double,
+    val isCompressed: Boolean
 )
 
 @Serializable

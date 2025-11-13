@@ -550,6 +550,138 @@
             font-weight: 600;
             margin-right: 8px;
         }
+
+        /* Стили для контролов сжатия */
+        .compression-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 12px 20px;
+            background: #F5F5F5;
+            border-top: 1px solid #E0E0E0;
+        }
+
+        .compression-control-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .compression-control-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .compression-control-item input[type="checkbox"]:disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .compression-control-item label {
+            font-size: 13px;
+            color: rgba(0,0,0,0.87);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .compression-control-item label.disabled {
+            color: rgba(0,0,0,0.38);
+            cursor: not-allowed;
+        }
+
+        .compression-info {
+            font-size: 11px;
+            color: rgba(0,0,0,0.6);
+            margin-left: 26px;
+            font-style: italic;
+        }
+
+        /* Стили для индикатора контекстного окна */
+        .context-window-indicator {
+            margin-top: 12px;
+            padding: 10px 16px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+        }
+
+        .context-window-label {
+            font-size: 11px;
+            opacity: 0.8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .context-window-percent {
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .context-window-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .context-window-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s ease, background-color 0.3s ease;
+            box-shadow: 0 0 10px rgba(255,255,255,0.3);
+        }
+
+        .context-window-fill.low {
+            background: linear-gradient(90deg, #4CAF50, #66BB6A);
+        }
+
+        .context-window-fill.medium {
+            background: linear-gradient(90deg, #FFC107, #FFD54F);
+        }
+
+        .context-window-fill.high {
+            background: linear-gradient(90deg, #FF9800, #FFB74D);
+        }
+
+        .context-window-fill.critical {
+            background: linear-gradient(90deg, #F44336, #EF5350);
+            animation: pulse-warning 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-warning {
+            0%, 100% {
+                box-shadow: 0 0 10px rgba(244, 67, 54, 0.5);
+            }
+            50% {
+                box-shadow: 0 0 20px rgba(244, 67, 54, 0.8);
+            }
+        }
+
+        .context-window-details {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            margin-top: 4px;
+            opacity: 0.7;
+        }
+
+        .compression-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            background: rgba(76, 175, 80, 0.3);
+            border: 1px solid rgba(76, 175, 80, 0.5);
+            border-radius: 3px;
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
     </style>
 </head>
 <body>
@@ -558,6 +690,14 @@
             <h1>AI Local Server</h1>
             <p>Yandex GPT</p>
             <div class="token-stats" id="tokenStats">
+                <div class="token-stat-item">
+                    <div class="token-stat-label">Сообщений</div>
+                    <div class="token-stat-value" id="messageCount">0</div>
+                </div>
+                <div class="token-stat-item">
+                    <div class="token-stat-label">До сжатия</div>
+                    <div class="token-stat-value" id="compressionProgress">-</div>
+                </div>
                 <div class="token-stat-item">
                     <div class="token-stat-label">Входящие</div>
                     <div class="token-stat-value" id="totalInputTokens">0</div>
@@ -575,6 +715,20 @@
                     <div class="token-stat-value" id="totalCost">0 ₽</div>
                 </div>
             </div>
+
+            <div class="context-window-indicator">
+                <div class="context-window-label">
+                    <span>Контекстное окно</span>
+                    <span class="context-window-percent" id="contextWindowPercent">0%</span>
+                </div>
+                <div class="context-window-bar">
+                    <div class="context-window-fill low" id="contextWindowFill" style="width: 0%"></div>
+                </div>
+                <div class="context-window-details">
+                    <span id="contextWindowTokens">0 / 8000 токенов</span>
+                    <span id="contextWindowStatus"></span>
+                </div>
+            </div>
         </div>
 
         <div class="chat-container" id="chatContainer"></div>
@@ -586,6 +740,20 @@
             <input type="file" id="fileInput" accept=".txt,.md,.json,.xml,.html,.css,.js,.py,.java,.kt,.c,.cpp,.h,.log,.csv,.yaml,.yml" />
             <span class="file-name empty" id="fileName">Файл не выбран</span>
             <button class="clear-file-button" id="clearFileButton" style="display: none;">Очистить</button>
+        </div>
+
+        <div class="compression-controls">
+            <div class="compression-control-item">
+                <input type="checkbox" id="compressContextToggle" />
+                <label for="compressContextToggle">Сжимать контекст (каждые 10 сообщений, сохраняя последнее)</label>
+            </div>
+            <div class="compression-control-item">
+                <input type="checkbox" id="compressSystemPromptToggle" disabled />
+                <label for="compressSystemPromptToggle" class="disabled">Сжимать системный промпт</label>
+            </div>
+            <div class="compression-info">
+                Сжатие экономит до 85-90% токенов для длинных диалогов
+            </div>
         </div>
 
         <div class="input-container">
@@ -621,13 +789,17 @@
         const fileInput = document.getElementById('fileInput');
         const fileName = document.getElementById('fileName');
         const clearFileButton = document.getElementById('clearFileButton');
+        const compressContextToggle = document.getElementById('compressContextToggle');
+        const compressSystemPromptToggle = document.getElementById('compressSystemPromptToggle');
+        const compressSystemPromptLabel = document.querySelector('label[for="compressSystemPromptToggle"]');
 
         // Счетчики токенов для сессии
         let sessionStats = {
             totalInputTokens: 0,
             totalOutputTokens: 0,
             totalTokens: 0,
-            totalCost: 0
+            totalCost: 0,
+            messageCount: 0  // Общее количество сообщений (user + assistant пары)
         };
 
         // Хранение содержимого загруженного файла
@@ -659,6 +831,85 @@
             document.getElementById('totalOutputTokens').textContent = sessionStats.totalOutputTokens.toLocaleString();
             document.getElementById('totalTokens').textContent = sessionStats.totalTokens.toLocaleString();
             document.getElementById('totalCost').textContent = sessionStats.totalCost.toFixed(2) + ' ₽';
+        }
+
+        // Обновление счетчика сообщений
+        function updateMessageCount(increment = true) {
+            if (increment) {
+                // Увеличиваем счетчик (каждое сообщение от пользователя + ответ = 2 сообщения)
+                sessionStats.messageCount += 2;
+            }
+
+            // Обновляем счетчик сообщений
+            document.getElementById('messageCount').textContent = sessionStats.messageCount;
+
+            // Обновляем прогресс до сжатия
+            const compressionProgressElement = document.getElementById('compressionProgress');
+
+            if (!compressContextToggle.checked) {
+                // Если сжатие выключено
+                compressionProgressElement.textContent = '-';
+                compressionProgressElement.style.color = '';
+            } else if (sessionStats.messageCount === 0) {
+                // Еще нет сообщений
+                compressionProgressElement.textContent = '-';
+                compressionProgressElement.style.color = '';
+            } else {
+                // Считаем сколько сообщений до следующего сжатия
+                const messagesUntilCompression = 10 - (sessionStats.messageCount % 10);
+
+                if (messagesUntilCompression === 10) {
+                    // Только что произошло сжатие или кратно 10
+                    compressionProgressElement.textContent = '✓';
+                    compressionProgressElement.style.color = '#4CAF50';
+                } else {
+                    compressionProgressElement.textContent = messagesUntilCompression;
+                    compressionProgressElement.style.color = '';
+                }
+            }
+        }
+
+        // Обновление индикатора контекстного окна
+        function updateContextWindowIndicator(contextWindowUsage) {
+            if (!contextWindowUsage) return;
+
+            const percentElement = document.getElementById('contextWindowPercent');
+            const fillElement = document.getElementById('contextWindowFill');
+            const tokensElement = document.getElementById('contextWindowTokens');
+            const statusElement = document.getElementById('contextWindowStatus');
+
+            const percent = Math.round(contextWindowUsage.usagePercent);
+            const currentTokens = contextWindowUsage.currentTokens;
+            const maxTokens = contextWindowUsage.maxTokens;
+            const isCompressed = contextWindowUsage.isCompressed;
+
+            // Обновляем процент
+            percentElement.textContent = percent + '%';
+
+            // Обновляем ширину прогресс-бара
+            fillElement.style.width = percent + '%';
+
+            // Определяем класс цвета в зависимости от процента
+            fillElement.className = 'context-window-fill';
+            if (percent < 60) {
+                fillElement.classList.add('low');
+            } else if (percent < 80) {
+                fillElement.classList.add('medium');
+            } else if (percent < 90) {
+                fillElement.classList.add('high');
+            } else {
+                fillElement.classList.add('critical');
+            }
+
+            // Обновляем детали
+            tokensElement.textContent = `${currentTokens.toLocaleString()} / ${maxTokens.toLocaleString()} токенов`;
+
+            // Обновляем статус
+            if (isCompressed) {
+                statusElement.innerHTML = '<span class="compression-badge">Сжато</span>';
+            } else {
+                statusElement.textContent = '';
+            }
         }
 
         // Форматирование информации о токенах
@@ -864,6 +1115,23 @@
             clearFileButton.style.display = 'none';
         }
 
+        // Управление зависимостью тумблеров сжатия
+        compressContextToggle.addEventListener('change', () => {
+            if (compressContextToggle.checked) {
+                // Включаем второй тумблер
+                compressSystemPromptToggle.disabled = false;
+                compressSystemPromptLabel.classList.remove('disabled');
+            } else {
+                // Выключаем второй тумблер и делаем его неактивным
+                compressSystemPromptToggle.checked = false;
+                compressSystemPromptToggle.disabled = true;
+                compressSystemPromptLabel.classList.add('disabled');
+            }
+
+            // Обновляем прогресс до сжатия при изменении тумблера (без увеличения счетчика)
+            updateMessageCount(false);
+        });
+
         async function sendMessage() {
             const message = messageInput.value.trim();
             const hasFile = currentFileContent !== null;
@@ -916,9 +1184,15 @@
 
                 const requestBody = {
                     message: fullMessage,
-                    temperature: temperature
+                    temperature: temperature,
+                    compressContext: compressContextToggle.checked,
+                    compressSystemPrompt: compressSystemPromptToggle.checked
                 };
                 console.log('Request body:', JSON.stringify(requestBody).substring(0, 200) + '...');
+                console.log('Compression settings:', {
+                    compressContext: compressContextToggle.checked,
+                    compressSystemPrompt: compressSystemPromptToggle.checked
+                });
 
                 const response = await fetch('/api/chat', {
                     method: 'POST',
@@ -931,6 +1205,14 @@
                 const data = await response.json();
                 chatContainer.removeChild(loadingDiv);
                 addMessage(data.response, false, data.title, data.isMultiAgent, data.agents, data.tokenUsage);
+
+                // Обновляем счетчик сообщений
+                updateMessageCount();
+
+                // Обновляем индикатор контекстного окна
+                if (data.contextWindowUsage) {
+                    updateContextWindowIndicator(data.contextWindowUsage);
+                }
             } catch (error) {
                 chatContainer.removeChild(loadingDiv);
                 addMessage('Ошибка: ' + error.message, false);
