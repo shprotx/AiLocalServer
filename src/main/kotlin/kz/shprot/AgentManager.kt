@@ -248,7 +248,7 @@ class AgentManager(
      * Главный метод обработки сообщения (с автоматическим анализом + поддержкой явного запроса)
      */
     suspend fun processMessage(
-        sessionId: String,
+        chatId: Int,
         userMessage: String,
         history: List<Message>,
         temperature: Double = 0.6,
@@ -272,10 +272,10 @@ class AgentManager(
             println("Используется базовый агент, температура $temperature")
             val messages = if (compressContext) {
                 chatHistory.buildMessagesWithCompression(
-                    sessionId, userMessage, compressContext, compressSystemPrompt
+                    chatId, userMessage, compressContext, compressSystemPrompt
                 )
             } else {
-                chatHistory.buildMessagesWithHistory(sessionId, userMessage)
+                chatHistory.buildMessagesWithHistory(chatId, userMessage)
             }
             val result = baseClient.sendMessageWithHistoryAndUsage(
                 messages,

@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ChatRequest(
     val message: String,
-    val sessionId: String = "default",
+    val chatId: Int,  // Теперь используем chatId вместо sessionId
     val temperature: Double? = 0.6,
     val compressContext: Boolean = false,
     val compressSystemPrompt: Boolean = false
@@ -57,4 +57,44 @@ data class ContextWindowUsage(
 data class LLMStructuredResponse(
     val title: String,
     val message: String
+)
+
+// Модели для работы с чатами
+
+@Serializable
+data class Chat(
+    val id: Int,
+    val title: String,
+    val createdAt: Long,
+    val updatedAt: Long
+)
+
+@Serializable
+data class ChatListResponse(
+    val chats: List<Chat>
+)
+
+@Serializable
+data class CreateChatRequest(
+    val title: String = "Новый чат"
+)
+
+@Serializable
+data class CreateChatResponse(
+    val chatId: Int,
+    val title: String
+)
+
+@Serializable
+data class ChatMessage(
+    val id: Int,
+    val chatId: Int,
+    val role: String,
+    val content: String,
+    val timestamp: Long
+)
+
+@Serializable
+data class MessagesResponse(
+    val messages: List<ChatMessage>
 )

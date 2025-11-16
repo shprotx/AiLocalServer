@@ -18,20 +18,137 @@
             margin: 0;
             padding: 0;
             height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            overflow: hidden;
         }
 
-        .container {
-            max-width: 800px;
-            width: 100%;
+        .app-container {
+            display: flex;
             height: 100vh;
+        }
+
+        /* Sidebar styles */
+        .sidebar {
+            width: 280px;
             background: #FFFFFF;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1), 0 4px 8px rgba(0,0,0,0.08);
-            overflow: hidden;
+            border-right: 1px solid #E0E0E0;
             display: flex;
             flex-direction: column;
+            box-shadow: 2px 0 4px rgba(0,0,0,0.05);
+        }
+
+        .sidebar-header {
+            padding: 16px;
+            background: #1976D2;
+            color: #FFFFFF;
+        }
+
+        .sidebar-header h2 {
+            font-size: 18px;
+            font-weight: 500;
+            margin-bottom: 12px;
+        }
+
+        .new-chat-button {
+            width: 100%;
+            padding: 10px 16px;
+            background: rgba(255,255,255,0.2);
+            color: #FFFFFF;
+            border: 1px solid rgba(255,255,255,0.4);
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .new-chat-button:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .new-chat-button::before {
+            content: '+';
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .chats-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .chat-item {
+            padding: 12px;
+            margin-bottom: 4px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+            position: relative;
+            border: 1px solid transparent;
+        }
+
+        .chat-item:hover {
+            background: #F5F5F5;
+        }
+
+        .chat-item.active {
+            background: #E3F2FD;
+            border-color: #1976D2;
+        }
+
+        .chat-item-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: rgba(0,0,0,0.87);
+            margin-bottom: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            padding-right: 24px;
+        }
+
+        .chat-item-date {
+            font-size: 11px;
+            color: rgba(0,0,0,0.54);
+        }
+
+        .chat-item-delete {
+            position: absolute;
+            top: 50%;
+            right: 8px;
+            transform: translateY(-50%);
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #F44336;
+            color: #FFFFFF;
+            border: none;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .chat-item:hover .chat-item-delete {
+            display: flex;
+        }
+
+        .chat-item-delete:hover {
+            background: #D32F2F;
+        }
+
+        /* Main content area */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #FFFFFF;
         }
 
         .header {
@@ -212,11 +329,6 @@
             white-space: nowrap;
         }
 
-        .temperature-label::before {
-            content: '🌡️';
-            font-size: 16px;
-        }
-
         #sendButton {
             padding: 12px 24px;
             background: #1976D2;
@@ -277,21 +389,6 @@
             gap: 8px;
         }
 
-        .loading-text::before {
-            content: '🤖';
-            font-size: 20px;
-            animation: rotate 2s linear infinite;
-        }
-
-        @keyframes rotate {
-            from {
-                transform: rotate(0deg);
-            }
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
         .progress-bar {
             width: 100%;
             height: 6px;
@@ -325,7 +422,7 @@
             }
         }
 
-        /* Markdown стили */
+        /* Markdown styles */
         .message pre {
             background: #1E1E1E;
             border-radius: 6px;
@@ -423,7 +520,7 @@
             background: rgba(255,255,255,0.2);
         }
 
-        /* Multi-agent стили */
+        /* Multi-agent styles */
         .multi-agent-container {
             background: #FFFFFF;
             align-self: flex-start;
@@ -477,7 +574,7 @@
             letter-spacing: 0.5px;
         }
 
-        /* Стили для загрузки файлов */
+        /* File upload styles */
         .file-upload-container {
             display: flex;
             align-items: center;
@@ -540,18 +637,7 @@
             background: #D32F2F;
         }
 
-        .file-badge {
-            display: inline-block;
-            padding: 2px 8px;
-            background: #E3F2FD;
-            color: #1976D2;
-            border-radius: 10px;
-            font-size: 11px;
-            font-weight: 600;
-            margin-right: 8px;
-        }
-
-        /* Стили для контролов сжатия */
+        /* Compression controls styles */
         .compression-controls {
             display: flex;
             flex-direction: column;
@@ -597,7 +683,6 @@
             font-style: italic;
         }
 
-        /* Стили для индикатора контекстного окна */
         .context-window-indicator {
             margin-top: 12px;
             padding: 10px 16px;
@@ -682,106 +767,153 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
+
+        .empty-state {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            color: rgba(0,0,0,0.38);
+            padding: 40px;
+            text-align: center;
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-state-text {
+            font-size: 18px;
+            margin-bottom: 8px;
+        }
+
+        .empty-state-subtext {
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>AI Local Server</h1>
-            <p>Yandex GPT</p>
-            <div class="token-stats" id="tokenStats">
-                <div class="token-stat-item">
-                    <div class="token-stat-label">Сообщений</div>
-                    <div class="token-stat-value" id="messageCount">0</div>
-                </div>
-                <div class="token-stat-item">
-                    <div class="token-stat-label">До сжатия</div>
-                    <div class="token-stat-value" id="compressionProgress">-</div>
-                </div>
-                <div class="token-stat-item">
-                    <div class="token-stat-label">Входящие</div>
-                    <div class="token-stat-value" id="totalInputTokens">0</div>
-                </div>
-                <div class="token-stat-item">
-                    <div class="token-stat-label">Исходящие</div>
-                    <div class="token-stat-value" id="totalOutputTokens">0</div>
-                </div>
-                <div class="token-stat-item">
-                    <div class="token-stat-label">Всего токенов</div>
-                    <div class="token-stat-value" id="totalTokens">0</div>
-                </div>
-                <div class="token-stat-item">
-                    <div class="token-stat-label">Стоимость</div>
-                    <div class="token-stat-value" id="totalCost">0 ₽</div>
-                </div>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h2>Чаты</h2>
+                <button class="new-chat-button" id="newChatButton">Новый чат</button>
             </div>
-
-            <div class="context-window-indicator">
-                <div class="context-window-label">
-                    <span>Контекстное окно</span>
-                    <span class="context-window-percent" id="contextWindowPercent">0%</span>
-                </div>
-                <div class="context-window-bar">
-                    <div class="context-window-fill low" id="contextWindowFill" style="width: 0%"></div>
-                </div>
-                <div class="context-window-details">
-                    <span id="contextWindowTokens">0 / 8000 токенов</span>
-                    <span id="contextWindowStatus"></span>
-                </div>
+            <div class="chats-list" id="chatsList">
+                <!-- Chat items will be inserted here -->
             </div>
         </div>
 
-        <div class="chat-container" id="chatContainer"></div>
+        <!-- Main content -->
+        <div class="main-content">
+            <div class="header">
+                <h1>AI Local Server</h1>
+                <p>Yandex GPT</p>
+                <div class="token-stats" id="tokenStats">
+                    <div class="token-stat-item">
+                        <div class="token-stat-label">Сообщений</div>
+                        <div class="token-stat-value" id="messageCount">0</div>
+                    </div>
+                    <div class="token-stat-item">
+                        <div class="token-stat-label">До сжатия</div>
+                        <div class="token-stat-value" id="compressionProgress">-</div>
+                    </div>
+                    <div class="token-stat-item">
+                        <div class="token-stat-label">Входящие</div>
+                        <div class="token-stat-value" id="totalInputTokens">0</div>
+                    </div>
+                    <div class="token-stat-item">
+                        <div class="token-stat-label">Исходящие</div>
+                        <div class="token-stat-value" id="totalOutputTokens">0</div>
+                    </div>
+                    <div class="token-stat-item">
+                        <div class="token-stat-label">Всего токенов</div>
+                        <div class="token-stat-value" id="totalTokens">0</div>
+                    </div>
+                    <div class="token-stat-item">
+                        <div class="token-stat-label">Стоимость</div>
+                        <div class="token-stat-value" id="totalCost">0 ₽</div>
+                    </div>
+                </div>
 
-        <div class="file-upload-container" id="fileUploadContainer">
-            <label for="fileInput" class="file-upload-label">
-                📎 Файл
-            </label>
-            <input type="file" id="fileInput" accept=".txt,.md,.json,.xml,.html,.css,.js,.py,.java,.kt,.c,.cpp,.h,.log,.csv,.yaml,.yml" />
-            <span class="file-name empty" id="fileName">Файл не выбран</span>
-            <button class="clear-file-button" id="clearFileButton" style="display: none;">Очистить</button>
-        </div>
+                <div class="context-window-indicator">
+                    <div class="context-window-label">
+                        <span>Контекстное окно</span>
+                        <span class="context-window-percent" id="contextWindowPercent">0%</span>
+                    </div>
+                    <div class="context-window-bar">
+                        <div class="context-window-fill low" id="contextWindowFill" style="width: 0%"></div>
+                    </div>
+                    <div class="context-window-details">
+                        <span id="contextWindowTokens">0 / 8000 токенов</span>
+                        <span id="contextWindowStatus"></span>
+                    </div>
+                </div>
+            </div>
 
-        <div class="compression-controls">
-            <div class="compression-control-item">
-                <input type="checkbox" id="compressContextToggle" />
-                <label for="compressContextToggle">Сжимать контекст (каждые 10 сообщений, сохраняя последнее)</label>
+            <div class="chat-container" id="chatContainer">
+                <div class="empty-state">
+                    <div class="empty-state-icon">💬</div>
+                    <div class="empty-state-text">Выберите чат или создайте новый</div>
+                    <div class="empty-state-subtext">Нажмите "Новый чат" для начала</div>
+                </div>
             </div>
-            <div class="compression-control-item">
-                <input type="checkbox" id="compressSystemPromptToggle" disabled />
-                <label for="compressSystemPromptToggle" class="disabled">Сжимать системный промпт</label>
-            </div>
-            <div class="compression-info">
-                Сжатие экономит до 85-90% токенов для длинных диалогов
-            </div>
-        </div>
 
-        <div class="input-container">
-            <input
-                type="text"
-                id="messageInput"
-                placeholder="Введите сообщение..."
-                autocomplete="off"
-            />
-            <div class="temperature-label">
-                <label for="temperatureInput">T</label>
+            <div class="file-upload-container" id="fileUploadContainer">
+                <label for="fileInput" class="file-upload-label">
+                    📎 Файл
+                </label>
+                <input type="file" id="fileInput" accept=".txt,.md,.json,.xml,.html,.css,.js,.py,.java,.kt,.c,.cpp,.h,.log,.csv,.yaml,.yml" />
+                <span class="file-name empty" id="fileName">Файл не выбран</span>
+                <button class="clear-file-button" id="clearFileButton" style="display: none;">Очистить</button>
+            </div>
+
+            <div class="compression-controls">
+                <div class="compression-control-item">
+                    <input type="checkbox" id="compressContextToggle" />
+                    <label for="compressContextToggle">Сжимать контекст (каждые 10 сообщений, сохраняя последнее)</label>
+                </div>
+                <div class="compression-control-item">
+                    <input type="checkbox" id="compressSystemPromptToggle" disabled />
+                    <label for="compressSystemPromptToggle" class="disabled">Сжимать системный промпт</label>
+                </div>
+                <div class="compression-info">
+                    Сжатие экономит до 85-90% токенов для длинных диалогов
+                </div>
+            </div>
+
+            <div class="input-container">
                 <input
-                    type="number"
-                    id="temperatureInput"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    value="0.6"
-                    title="Температура генерации (0.0 - 1.0)"
+                    type="text"
+                    id="messageInput"
+                    placeholder="Введите сообщение..."
+                    autocomplete="off"
                 />
+                <div class="temperature-label">
+                    <label for="temperatureInput">T</label>
+                    <input
+                        type="number"
+                        id="temperatureInput"
+                        min="0"
+                        max="1"
+                        step="0.1"
+                        value="0.6"
+                        title="Температура генерации (0.0 - 1.0)"
+                    />
+                </div>
+                <button id="sendButton">Отправить</button>
             </div>
-            <button id="sendButton">Отправить</button>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <script>
+        // DOM elements
         const chatContainer = document.getElementById('chatContainer');
         const messageInput = document.getElementById('messageInput');
         const temperatureInput = document.getElementById('temperatureInput');
@@ -792,21 +924,23 @@
         const compressContextToggle = document.getElementById('compressContextToggle');
         const compressSystemPromptToggle = document.getElementById('compressSystemPromptToggle');
         const compressSystemPromptLabel = document.querySelector('label[for="compressSystemPromptToggle"]');
+        const newChatButton = document.getElementById('newChatButton');
+        const chatsList = document.getElementById('chatsList');
 
-        // Счетчики токенов для сессии
+        // State
+        let currentChatId = null;
+        let chats = [];
         let sessionStats = {
             totalInputTokens: 0,
             totalOutputTokens: 0,
             totalTokens: 0,
             totalCost: 0,
-            messageCount: 0  // Общее количество сообщений (user + assistant пары)
+            messageCount: 0
         };
-
-        // Хранение содержимого загруженного файла
         let currentFileContent = null;
         let currentFileName = null;
 
-        // Настройка marked для рендеринга кода
+        // Configure marked
         marked.setOptions({
             highlight: function(code, lang) {
                 if (lang && hljs.getLanguage(lang)) {
@@ -818,9 +952,173 @@
             gfm: true
         });
 
-        // Обновление статистики токенов в шапке
+        // Initialize
+        async function init() {
+            await loadChats();
+            if (chats.length === 0) {
+                await createNewChat();
+            } else {
+                await switchToChat(chats[0].id);
+            }
+        }
+
+        // API functions
+        async function loadChats() {
+            try {
+                const response = await fetch('/api/chats');
+                const data = await response.json();
+                chats = data.chats || [];
+                renderChatsList();
+            } catch (error) {
+                console.error('Failed to load chats:', error);
+                chats = [];
+            }
+        }
+
+        async function createNewChat() {
+            try {
+                const response = await fetch('/api/chats', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: 'Новый чат' })
+                });
+                const newChat = await response.json();
+                // API возвращает {chatId, title}, преобразуем в формат Chat {id, ...}
+                const chat = {
+                    id: newChat.chatId,
+                    title: newChat.title,
+                    createdAt: Date.now(),
+                    updatedAt: Date.now()
+                };
+                chats.unshift(chat);
+                renderChatsList();
+                await switchToChat(chat.id);
+            } catch (error) {
+                console.error('Failed to create chat:', error);
+                alert('Не удалось создать чат: ' + error.message);
+            }
+        }
+
+        async function deleteChat(chatId) {
+            if (!confirm('Удалить этот чат?')) return;
+
+            try {
+                await fetch(`/api/chats/${chatId}`, { method: 'DELETE' });
+                chats = chats.filter(c => c.id !== chatId);
+                renderChatsList();
+
+                if (currentChatId === chatId) {
+                    if (chats.length > 0) {
+                        await switchToChat(chats[0].id);
+                    } else {
+                        await createNewChat();
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to delete chat:', error);
+                alert('Не удалось удалить чат: ' + error.message);
+            }
+        }
+
+        async function switchToChat(chatId) {
+            currentChatId = chatId;
+            clearChatContainer();
+            resetSessionStats();
+            renderChatsList();
+
+            try {
+                const response = await fetch(`/api/chats/${chatId}/messages`);
+                const data = await response.json();
+
+                if (data.messages && data.messages.length > 0) {
+                    data.messages.forEach(msg => {
+                        if (msg.role === 'user') {
+                            addMessage(msg.content, true);
+                        } else if (msg.role === 'assistant') {
+                            addMessage(msg.content, false);
+                        }
+                    });
+                    sessionStats.messageCount = data.messages.length;
+                    updateMessageCount(false);
+                }
+            } catch (error) {
+                console.error('Failed to load chat history:', error);
+            }
+
+            messageInput.focus();
+        }
+
+        function renderChatsList() {
+            chatsList.innerHTML = '';
+            chats.forEach(chat => {
+                const chatItem = document.createElement('div');
+                chatItem.className = 'chat-item' + (chat.id === currentChatId ? ' active' : '');
+
+                const title = document.createElement('div');
+                title.className = 'chat-item-title';
+                title.textContent = chat.title || 'Новый чат';
+
+                const date = document.createElement('div');
+                date.className = 'chat-item-date';
+                date.textContent = formatDate(chat.updatedAt || chat.createdAt);
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'chat-item-delete';
+                deleteBtn.innerHTML = '🗑️';
+                deleteBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    deleteChat(chat.id);
+                };
+
+                chatItem.appendChild(title);
+                chatItem.appendChild(date);
+                chatItem.appendChild(deleteBtn);
+
+                chatItem.onclick = () => switchToChat(chat.id);
+                chatsList.appendChild(chatItem);
+            });
+        }
+
+        function formatDate(timestamp) {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diff = now - date;
+            const minutes = Math.floor(diff / 60000);
+            const hours = Math.floor(diff / 3600000);
+            const days = Math.floor(diff / 86400000);
+
+            if (minutes < 1) return 'только что';
+            if (minutes < 60) return `${minutes} мин. назад`;
+            if (hours < 24) return `${hours} ч. назад`;
+            if (days < 7) return `${days} дн. назад`;
+
+            return date.toLocaleDateString('ru-RU');
+        }
+
+        function clearChatContainer() {
+            chatContainer.innerHTML = '';
+        }
+
+        function resetSessionStats() {
+            sessionStats = {
+                totalInputTokens: 0,
+                totalOutputTokens: 0,
+                totalTokens: 0,
+                totalCost: 0,
+                messageCount: 0
+            };
+            updateMessageCount(false);
+            updateTokenStats(null);
+        }
+
         function updateTokenStats(tokenUsage) {
-            if (!tokenUsage) return;
+            if (!tokenUsage) {
+                document.getElementById('totalInputTokens').textContent = '0';
+                document.getElementById('totalOutputTokens').textContent = '0';
+                document.getElementById('totalTokens').textContent = '0';
+                document.getElementById('totalCost').textContent = '0 ₽';
+                return;
+            }
 
             sessionStats.totalInputTokens += tokenUsage.inputTokens;
             sessionStats.totalOutputTokens += tokenUsage.outputTokens;
@@ -833,33 +1131,25 @@
             document.getElementById('totalCost').textContent = sessionStats.totalCost.toFixed(2) + ' ₽';
         }
 
-        // Обновление счетчика сообщений
         function updateMessageCount(increment = true) {
             if (increment) {
-                // Увеличиваем счетчик (каждое сообщение от пользователя + ответ = 2 сообщения)
                 sessionStats.messageCount += 2;
             }
 
-            // Обновляем счетчик сообщений
             document.getElementById('messageCount').textContent = sessionStats.messageCount;
 
-            // Обновляем прогресс до сжатия
             const compressionProgressElement = document.getElementById('compressionProgress');
 
             if (!compressContextToggle.checked) {
-                // Если сжатие выключено
                 compressionProgressElement.textContent = '-';
                 compressionProgressElement.style.color = '';
             } else if (sessionStats.messageCount === 0) {
-                // Еще нет сообщений
                 compressionProgressElement.textContent = '-';
                 compressionProgressElement.style.color = '';
             } else {
-                // Считаем сколько сообщений до следующего сжатия
                 const messagesUntilCompression = 10 - (sessionStats.messageCount % 10);
 
                 if (messagesUntilCompression === 10) {
-                    // Только что произошло сжатие или кратно 10
                     compressionProgressElement.textContent = '✓';
                     compressionProgressElement.style.color = '#4CAF50';
                 } else {
@@ -869,7 +1159,6 @@
             }
         }
 
-        // Обновление индикатора контекстного окна
         function updateContextWindowIndicator(contextWindowUsage) {
             if (!contextWindowUsage) return;
 
@@ -883,13 +1172,9 @@
             const maxTokens = contextWindowUsage.maxTokens;
             const isCompressed = contextWindowUsage.isCompressed;
 
-            // Обновляем процент
             percentElement.textContent = percent + '%';
-
-            // Обновляем ширину прогресс-бара
             fillElement.style.width = percent + '%';
 
-            // Определяем класс цвета в зависимости от процента
             fillElement.className = 'context-window-fill';
             if (percent < 60) {
                 fillElement.classList.add('low');
@@ -901,10 +1186,8 @@
                 fillElement.classList.add('critical');
             }
 
-            // Обновляем детали
             tokensElement.textContent = `${currentTokens.toLocaleString()} / ${maxTokens.toLocaleString()} токенов`;
 
-            // Обновляем статус
             if (isCompressed) {
                 statusElement.innerHTML = '<span class="compression-badge">Сжато</span>';
             } else {
@@ -912,7 +1195,6 @@
             }
         }
 
-        // Форматирование информации о токенах
         function createTokenInfo(tokenUsage) {
             if (!tokenUsage) return null;
 
@@ -945,23 +1227,19 @@
 
         function addMessage(text, isUser, title = null, isMultiAgent = false, agents = null, tokenUsage = null) {
             if (isUser) {
-                // Простое сообщение от пользователя
                 const messageDiv = document.createElement('div');
                 messageDiv.className = 'message user-message';
                 messageDiv.textContent = text;
                 chatContainer.appendChild(messageDiv);
             } else if (isMultiAgent && agents && agents.length > 0) {
-                // Multi-agent ответ
                 const container = document.createElement('div');
                 container.className = 'multi-agent-container';
 
-                // Заголовок
                 const header = document.createElement('div');
                 header.className = 'multi-agent-header';
                 header.textContent = title || 'Консультация специалистов';
                 container.appendChild(header);
 
-                // Ответы каждого агента
                 agents.forEach(agent => {
                     const agentDiv = document.createElement('div');
                     agentDiv.className = 'agent-response';
@@ -979,7 +1257,6 @@
                     container.appendChild(agentDiv);
                 });
 
-                // Синтез
                 const synthesisDiv = document.createElement('div');
                 synthesisDiv.className = 'synthesis-section';
 
@@ -992,7 +1269,6 @@
                 synthesisContent.innerHTML = marked.parse(text);
                 synthesisDiv.appendChild(synthesisContent);
 
-                // Добавляем информацию о токенах
                 if (tokenUsage) {
                     const tokenInfo = createTokenInfo(tokenUsage);
                     if (tokenInfo) {
@@ -1005,7 +1281,6 @@
 
                 chatContainer.appendChild(container);
             } else {
-                // Обычное сообщение от ассистента
                 const messageDiv = document.createElement('div');
                 messageDiv.className = 'message assistant-message';
 
@@ -1024,7 +1299,6 @@
                 contentDiv.innerHTML = marked.parse(text);
                 messageDiv.appendChild(contentDiv);
 
-                // Добавляем информацию о токенах
                 if (tokenUsage) {
                     const tokenInfo = createTokenInfo(tokenUsage);
                     if (tokenInfo) {
@@ -1036,7 +1310,6 @@
                 chatContainer.appendChild(messageDiv);
             }
 
-            // Обновляем общую статистику
             if (tokenUsage) {
                 updateTokenStats(tokenUsage);
             }
@@ -1063,7 +1336,7 @@
             });
         }
 
-        // Обработка выбора файла
+        // File handling
         fileInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
@@ -1073,17 +1346,15 @@
             fileName.classList.remove('empty');
             clearFileButton.style.display = 'inline-block';
 
-            // Читаем содержимое файла
             try {
                 const text = await file.text();
                 currentFileContent = text;
 
                 const charCount = text.length;
-                const approxTokens = Math.ceil(charCount / 3); // Примерная оценка: 1 токен ≈ 3 символа
+                const approxTokens = Math.ceil(charCount / 3);
 
                 console.log('Файл загружен:', file.name, 'Размер:', charCount, 'символов, ~', approxTokens, 'токенов');
 
-                // Предупреждаем о больших файлах
                 if (approxTokens > 4000) {
                     const warning = `⚠️ Внимание! Файл большой (~${approxTokens.toLocaleString()} токенов).\n\n` +
                         `Рекомендуемый лимит: ~6000 токенов (с учетом промпта и ответа).\n\n` +
@@ -1101,7 +1372,6 @@
             }
         });
 
-        // Очистка файла
         clearFileButton.addEventListener('click', () => {
             clearFile();
         });
@@ -1115,35 +1385,35 @@
             clearFileButton.style.display = 'none';
         }
 
-        // Управление зависимостью тумблеров сжатия
+        // Compression toggles
         compressContextToggle.addEventListener('change', () => {
             if (compressContextToggle.checked) {
-                // Включаем второй тумблер
                 compressSystemPromptToggle.disabled = false;
                 compressSystemPromptLabel.classList.remove('disabled');
             } else {
-                // Выключаем второй тумблер и делаем его неактивным
                 compressSystemPromptToggle.checked = false;
                 compressSystemPromptToggle.disabled = true;
                 compressSystemPromptLabel.classList.add('disabled');
             }
 
-            // Обновляем прогресс до сжатия при изменении тумблера (без увеличения счетчика)
             updateMessageCount(false);
         });
 
+        // Send message
         async function sendMessage() {
+            if (!currentChatId) {
+                alert('Выберите или создайте чат');
+                return;
+            }
+
             const message = messageInput.value.trim();
             const hasFile = currentFileContent !== null;
 
-            // Должно быть либо сообщение, либо файл
             if (!message && !hasFile) return;
 
             const tempValue = temperatureInput.value.trim();
             const temperature = tempValue !== '' ? parseFloat(tempValue) : 0.6;
-            console.log('Отправляем запрос с температурой:', temperature);
 
-            // Формируем сообщение для отображения
             let displayMessage = message || '(анализ файла)';
             if (hasFile) {
                 displayMessage = (message || 'Проанализируй содержимое файла') + ` 📎 ${currentFileName}`;
@@ -1172,27 +1442,20 @@
             chatContainer.appendChild(loadingDiv);
 
             try {
-                // Формируем полное сообщение с содержимым файла
                 let fullMessage = message;
                 if (hasFile) {
                     const filePrompt = message || 'Проанализируй содержимое файла и дай краткое резюме.';
                     fullMessage = `${filePrompt}\n\n--- Содержимое файла "${currentFileName}" ---\n${currentFileContent}\n--- Конец файла ---`;
-
-                    // Очищаем файл СРАЗУ после формирования сообщения, чтобы он не отправился повторно
                     clearFile();
                 }
 
                 const requestBody = {
                     message: fullMessage,
+                    chatId: currentChatId,
                     temperature: temperature,
                     compressContext: compressContextToggle.checked,
                     compressSystemPrompt: compressSystemPromptToggle.checked
                 };
-                console.log('Request body:', JSON.stringify(requestBody).substring(0, 200) + '...');
-                console.log('Compression settings:', {
-                    compressContext: compressContextToggle.checked,
-                    compressSystemPrompt: compressSystemPromptToggle.checked
-                });
 
                 const response = await fetch('/api/chat', {
                     method: 'POST',
@@ -1206,13 +1469,14 @@
                 chatContainer.removeChild(loadingDiv);
                 addMessage(data.response, false, data.title, data.isMultiAgent, data.agents, data.tokenUsage);
 
-                // Обновляем счетчик сообщений
                 updateMessageCount();
 
-                // Обновляем индикатор контекстного окна
                 if (data.contextWindowUsage) {
                     updateContextWindowIndicator(data.contextWindowUsage);
                 }
+
+                // Reload chats to update the list
+                await loadChats();
             } catch (error) {
                 chatContainer.removeChild(loadingDiv);
                 addMessage('Ошибка: ' + error.message, false);
@@ -1222,6 +1486,8 @@
             }
         }
 
+        // Event listeners
+        newChatButton.addEventListener('click', createNewChat);
         sendButton.addEventListener('click', sendMessage);
         messageInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
@@ -1229,7 +1495,8 @@
             }
         });
 
-        messageInput.focus();
+        // Initialize app
+        init();
     </script>
 </body>
 </html>

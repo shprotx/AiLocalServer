@@ -27,6 +27,9 @@ dependencies {
     // Kotlinx Serialization
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 
+    // SQLite Database
+    implementation("org.xerial:sqlite-jdbc:3.47.1.0")
+
     // Logging
     implementation("ch.qos.logback:logback-classic:1.5.12")
 

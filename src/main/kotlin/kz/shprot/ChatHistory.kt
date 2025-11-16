@@ -14,15 +14,19 @@ data class MessageWithTokens(
 )
 
 /**
- * Контекст сессии с информацией о сжатии
+ * Контекст чата с информацией о сжатии (в памяти)
  */
-data class SessionContext(
+data class ChatContext(
     val messages: MutableList<MessageWithTokens> = mutableListOf(),
     var compressionInfo: CompressionInfo? = null
 )
 
-class ChatHistory {
-    private val sessions = ConcurrentHashMap<String, SessionContext>()
+/**
+ * Управление историей чатов с персистентным хранилищем в SQLite
+ */
+class ChatHistory(private val db: DatabaseManager) {
+    // Кэш загруженных чатов в памяти для быстрого доступа
+    private val chatCache = ConcurrentHashMap<Int, ChatContext>()
 
     // Получение модели из URI для расчета стоимости
     private fun extractModelName(modelUri: String): String {
@@ -146,30 +150,106 @@ class ChatHistory {
         """.trimMargin()
     }
 
-    fun addMessage(sessionId: String, role: String, text: String, usage: Usage? = null) {
-        val context = sessions.getOrPut(sessionId) { SessionContext() }
+    /**
+     * Создание нового чата
+     * @param title название чата (можно сгенерировать из первого сообщения)
+     * @return ID созданного чата
+     */
+    fun createChat(title: String = "Новый чат"): Int {
+        return db.createChat(title)
+    }
+
+    /**
+     * Получение всех чатов
+     */
+    fun getAllChats(): List<ChatData> {
+        return db.getAllChats()
+    }
+
+    /**
+     * Удаление чата
+     */
+    fun deleteChat(chatId: Int): Boolean {
+        chatCache.remove(chatId)
+        return db.deleteChat(chatId)
+    }
+
+    /**
+     * Загрузка чата из БД в память (если еще не загружен)
+     */
+    fun loadChat(chatId: Int) {
+        if (chatCache.containsKey(chatId)) {
+            return // Уже загружен
+        }
+
+        val messagesFromDb = db.getMessages(chatId)
+        val context = ChatContext()
+
+        // Конвертируем MessageData -> MessageWithTokens
+        messagesFromDb.forEach { msgData ->
+            context.messages.add(
+                MessageWithTokens(
+                    message = Message(role = msgData.role, text = msgData.content),
+                    usage = null // Токены не сохраняем в БД пока
+                )
+            )
+        }
+
+        chatCache[chatId] = context
+        println("📥 Чат $chatId загружен в память (${context.messages.size} сообщений)")
+    }
+
+    /**
+     * Добавление сообщения в чат (сохраняется и в БД, и в памяти)
+     */
+    fun addMessage(chatId: Int, role: String, text: String, usage: Usage? = null) {
+        // Загружаем чат в память если еще не загружен
+        loadChat(chatId)
+
+        // Добавляем в память
+        val context = chatCache.getOrPut(chatId) { ChatContext() }
         context.messages.add(MessageWithTokens(
             message = Message(role = role, text = text),
             usage = usage
         ))
+
+        // Сохраняем в БД
+        db.saveMessage(chatId, role, text)
+
+        // Обновляем заголовок чата если это первое сообщение пользователя
+        if (context.messages.size == 1 && role == "user") {
+            val title = text.take(50) // Первые 50 символов
+            db.updateChatTitle(chatId, title)
+        }
     }
 
-    fun getMessages(sessionId: String): List<Message> {
-        return sessions[sessionId]?.messages?.map { it.message } ?: emptyList()
+    /**
+     * Получение сообщений чата (из памяти, с автозагрузкой из БД)
+     */
+    fun getMessages(chatId: Int): List<Message> {
+        loadChat(chatId)
+        return chatCache[chatId]?.messages?.map { it.message } ?: emptyList()
     }
 
-    fun getMessagesWithTokens(sessionId: String): List<MessageWithTokens> {
-        return sessions[sessionId]?.messages?.toList() ?: emptyList()
+    /**
+     * Получение сообщений с информацией о токенах
+     */
+    fun getMessagesWithTokens(chatId: Int): List<MessageWithTokens> {
+        loadChat(chatId)
+        return chatCache[chatId]?.messages?.toList() ?: emptyList()
     }
 
-    fun buildMessagesWithHistory(sessionId: String, userMessage: String): List<Message> {
+    /**
+     * Построение списка сообщений для отправки в LLM (с system prompt)
+     */
+    fun buildMessagesWithHistory(chatId: Int, userMessage: String): List<Message> {
         val messages = mutableListOf<Message>()
 
         // Добавляем system prompt
         messages.add(Message(role = "system", text = getSystemPrompt()))
 
         // Добавляем историю
-        messages.addAll(getMessages(sessionId))
+        messages.addAll(getMessages(chatId))
 
         // Добавляем текущее сообщение пользователя
         messages.add(Message(role = "user", text = userMessage))
@@ -178,10 +258,10 @@ class ChatHistory {
     }
 
     /**
-     * Получает общую статистику токенов для сессии
+     * Получает общую статистику токенов для чата
      */
-    fun getSessionStats(sessionId: String, modelUri: String): SessionTokenStats {
-        val messagesWithTokens = getMessagesWithTokens(sessionId)
+    fun getSessionStats(chatId: Int, modelUri: String): SessionTokenStats {
+        val messagesWithTokens = getMessagesWithTokens(chatId)
         val modelName = extractModelName(modelUri)
 
         var totalInput = 0
@@ -209,37 +289,40 @@ class ChatHistory {
     }
 
     /**
-     * Получает информацию о сжатии для сессии
+     * Получает информацию о сжатии для чата
      */
-    fun getCompressionInfo(sessionId: String): CompressionInfo? {
-        return sessions[sessionId]?.compressionInfo
+    fun getCompressionInfo(chatId: Int): CompressionInfo? {
+        loadChat(chatId)
+        return chatCache[chatId]?.compressionInfo
     }
 
     /**
-     * Обновляет информацию о сжатии для сессии
+     * Обновляет информацию о сжатии для чата
      */
-    fun updateCompressionInfo(sessionId: String, compressionInfo: CompressionInfo?) {
-        val context = sessions.getOrPut(sessionId) { SessionContext() }
+    fun updateCompressionInfo(chatId: Int, compressionInfo: CompressionInfo?) {
+        loadChat(chatId)
+        val context = chatCache.getOrPut(chatId) { ChatContext() }
         context.compressionInfo = compressionInfo
     }
 
     /**
      * Строит сообщения с учетом сжатия контекста
      *
-     * @param sessionId ID сессии
+     * @param chatId ID чата
      * @param userMessage Новое сообщение пользователя
      * @param useCompression Использовать ли сжатие
      * @param compressSystemPrompt Сжать ли системный промпт
      * @return Список сообщений для отправки в LLM
      */
     fun buildMessagesWithCompression(
-        sessionId: String,
+        chatId: Int,
         userMessage: String,
         useCompression: Boolean,
         compressSystemPrompt: Boolean
     ): List<Message> {
+        loadChat(chatId)
         val messages = mutableListOf<Message>()
-        val context = sessions[sessionId]
+        val context = chatCache[chatId]
 
         // Добавляем system prompt (сжатый или полный)
         val systemPrompt = if (compressSystemPrompt && context?.compressionInfo?.compressedSystemPrompt != null) {
@@ -268,7 +351,7 @@ class ChatHistory {
             messages.addAll(uncompressedMessages)
         } else {
             // Используем полную историю
-            messages.addAll(getMessages(sessionId))
+            messages.addAll(getMessages(chatId))
         }
 
         // Добавляем текущее сообщение пользователя
@@ -280,14 +363,14 @@ class ChatHistory {
     /**
      * Вычисляет использование контекстного окна для текущего запроса
      *
-     * @param sessionId ID сессии
+     * @param chatId ID чата
      * @param currentRequestTokens Количество токенов в текущем запросе
      * @param isCompressed Используется ли сжатие
      * @param maxContextWindow Максимальный размер контекстного окна модели
      * @return Информация об использовании контекстного окна
      */
     fun calculateContextWindowUsage(
-        sessionId: String,
+        chatId: Int,
         currentRequestTokens: Int,
         isCompressed: Boolean,
         maxContextWindow: Int = 8000
@@ -302,7 +385,10 @@ class ChatHistory {
         )
     }
 
-    fun clearSession(sessionId: String) {
-        sessions.remove(sessionId)
+    /**
+     * Очистка чата из кэша (НЕ удаляет из БД!)
+     */
+    fun clearChatCache(chatId: Int) {
+        chatCache.remove(chatId)
     }
 }

@@ -9,8 +9,7 @@ import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import kz.shprot.models.ChatRequest
-import kz.shprot.models.ChatResponse
+import kz.shprot.models.*
 import java.io.File
 
 // Вспомогательная функция для расчета стоимости
@@ -56,11 +55,16 @@ fun main() {
 
     val modelUri = "gpt://$folderId/$modelType/latest"
     val llmClient = YandexLLMClient(apiKey, modelUri)
-    val chatHistory = ChatHistory()
+
+    // Инициализация базы данных
+    val db = DatabaseManager("chats.db")
+    val chatHistory = ChatHistory(db)
+
     val contextCompressor = ContextCompressor(llmClient)
     val agentManager = AgentManager(apiKey, modelUri, chatHistory)
 
     println("=== Локальный сервер для общения с Yandex LLM ===")
+    println("База данных: chats.db")
     println("Модель: $modelType")
     println("JSON Schema: ${if (modelType == "yandexgpt") "включена" else "отключена (lite модель)"}")
     println("Multi-Agent система: включена")
@@ -79,17 +83,84 @@ fun main() {
                 call.respondText(htmlContent, ContentType.Text.Html)
             }
 
+            // Получение списка всех чатов
+            get("/api/chats") {
+                val chats = chatHistory.getAllChats()
+                val response = ChatListResponse(
+                    chats = chats.map { chatData ->
+                        Chat(
+                            id = chatData.id,
+                            title = chatData.title,
+                            createdAt = chatData.createdAt,
+                            updatedAt = chatData.updatedAt
+                        )
+                    }
+                )
+                call.respond(response)
+            }
+
+            // Создание нового чата
+            post("/api/chats") {
+                val request = call.receive<CreateChatRequest>()
+                val chatId = chatHistory.createChat(request.title)
+                val response = CreateChatResponse(chatId = chatId, title = request.title)
+                call.respond(HttpStatusCode.Created, response)
+            }
+
+            // Удаление чата
+            delete("/api/chats/{id}") {
+                val chatId = call.parameters["id"]?.toIntOrNull()
+                if (chatId == null) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid chat ID"))
+                    return@delete
+                }
+
+                val deleted = chatHistory.deleteChat(chatId)
+                if (deleted) {
+                    call.respond(HttpStatusCode.OK, mapOf("success" to true))
+                } else {
+                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "Chat not found"))
+                }
+            }
+
+            // Получение истории сообщений чата
+            get("/api/chats/{id}/messages") {
+                val chatId = call.parameters["id"]?.toIntOrNull()
+                if (chatId == null) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid chat ID"))
+                    return@get
+                }
+
+                val messages = db.getMessages(chatId)
+                val response = MessagesResponse(
+                    messages = messages.map { msgData ->
+                        ChatMessage(
+                            id = msgData.id,
+                            chatId = msgData.chatId,
+                            role = msgData.role,
+                            content = msgData.content,
+                            timestamp = msgData.timestamp
+                        )
+                    }
+                )
+                call.respond(response)
+            }
+
+            // Обычный режим чата (с multi-agent поддержкой)
             post("/api/chat") {
                 val request = call.receive<ChatRequest>()
                 println("=== Получен запрос ===")
                 println("Message: ${request.message}")
+                println("ChatId: ${request.chatId}")
                 println("Temperature: ${request.temperature}")
-                println("SessionId: ${request.sessionId}")
                 println("Compress Context: ${request.compressContext}")
                 println("Compress System Prompt: ${request.compressSystemPrompt}")
 
+                // Загружаем чат в память (если еще не загружен)
+                chatHistory.loadChat(request.chatId)
+
                 // Получаем историю сообщений для контекста
-                val history = chatHistory.getMessages(request.sessionId)
+                val history = chatHistory.getMessages(request.chatId)
 
                 // Обработка сжатия контекста (если включено)
                 println("=== Проверка сжатия ===")
@@ -97,7 +168,7 @@ fun main() {
                 println("Количество сообщений в истории: ${history.size}")
 
                 if (request.compressContext && history.size >= 10) {
-                    val currentCompression = chatHistory.getCompressionInfo(request.sessionId)
+                    val currentCompression = chatHistory.getCompressionInfo(request.chatId)
                     val needsCompression = currentCompression == null ||
                         (history.size - (currentCompression.compressedUpToIndex + 1)) >= 10
 
@@ -128,11 +199,11 @@ fun main() {
                                 temperature = 0.3
                             )
                             chatHistory.updateCompressionInfo(
-                                request.sessionId,
+                                request.chatId,
                                 newCompression.copy(compressedSystemPrompt = compressedPrompt)
                             )
                         } else if (newCompression != null) {
-                            chatHistory.updateCompressionInfo(request.sessionId, newCompression)
+                            chatHistory.updateCompressionInfo(request.chatId, newCompression)
                         }
 
                         println("=== Сжатие контекста завершено ===")
@@ -142,14 +213,14 @@ fun main() {
                 }
 
                 // Проверяем, будет ли использоваться сжатие в этом запросе
-                val compressionExists = chatHistory.getCompressionInfo(request.sessionId)
+                val compressionExists = chatHistory.getCompressionInfo(request.chatId)
                 println("=== Использование сжатия в текущем запросе ===")
                 println("Сжатие существует: ${compressionExists != null}")
                 println("Будет использовано: ${request.compressContext && compressionExists != null}")
 
                 // Обрабатываем сообщение через multi-agent систему
                 val multiAgentResponse = agentManager.processMessage(
-                    sessionId = request.sessionId,
+                    chatId = request.chatId,
                     userMessage = request.message,
                     history = history,
                     temperature = request.temperature ?: 0.6,
@@ -165,9 +236,9 @@ fun main() {
                     val inputTokens = usage.inputTextTokens.toIntOrNull() ?: 0
                     // Проверяем, действительно ли сжатие используется (не просто включен тумблер)
                     val isActuallyCompressed = request.compressContext &&
-                        chatHistory.getCompressionInfo(request.sessionId) != null
+                        chatHistory.getCompressionInfo(request.chatId) != null
                     chatHistory.calculateContextWindowUsage(
-                        sessionId = request.sessionId,
+                        chatId = request.chatId,
                         currentRequestTokens = inputTokens,
                         isCompressed = isActuallyCompressed
                     )
@@ -180,10 +251,9 @@ fun main() {
                               multiAgentResponse.totalUsage == null
 
                 // Сохраняем сообщения в истории ТОЛЬКО если НЕ было ошибки
-                // Иначе огромное сообщение с файлом будет отправляться снова и снова
                 if (!isError) {
-                    chatHistory.addMessage(request.sessionId, "user", request.message)
-                    chatHistory.addMessage(request.sessionId, "assistant", multiAgentResponse.synthesis, multiAgentResponse.totalUsage)
+                    chatHistory.addMessage(request.chatId, "user", request.message)
+                    chatHistory.addMessage(request.chatId, "assistant", multiAgentResponse.synthesis, multiAgentResponse.totalUsage)
                 } else {
                     println("⚠️ Ошибка API - сообщение НЕ сохранено в историю чата")
                 }
