@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "weather": {
+      "type": "stdio",
+      "command": "java",
+      "args": [
+        "-jar",
+        "weather-mcp/build/libs/weather-mcp-1.0.0.jar"
+      ],
+      "description": "Погодный сервер для получения текущей температуры"
+    }
+  }
+}

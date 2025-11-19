@@ -63,14 +63,27 @@ fun main() {
     val contextCompressor = ContextCompressor(llmClient)
     val agentManager = AgentManager(apiKey, modelUri, chatHistory)
 
+    // MCP Manager для подключения внешних инструментов
+    val mcpManager = SimpleMcpManager()
+
     println("=== Локальный сервер для общения с Yandex LLM ===")
     println("База данных: chats.db")
     println("Модель: $modelType")
     println("JSON Schema: ${if (modelType == "yandexgpt") "включена" else "отключена (lite модель)"}")
     println("Multi-Agent система: включена")
+    println("MCP серверы: см. mcp-servers.json")
     println("Сервер запускается на http://localhost:8080")
     println("Откройте браузер и перейдите по этому адресу")
     println()
+
+    // Запускаем MCP серверы в отдельной корутине
+    kotlinx.coroutines.runBlocking {
+        try {
+            mcpManager.startAllServers()
+        } catch (e: Exception) {
+            println("⚠️ Не удалось запустить MCP серверы: ${e.message}")
+        }
+    }
 
     embeddedServer(Netty, port = 8080) {
         install(ContentNegotiation) {
@@ -286,6 +299,31 @@ fun main() {
 
                 call.respond(response)
             }
+
+            // Тестовый endpoint для проверки MCP
+            get("/api/mcp/test") {
+                try {
+                    val result = mcpManager.callTool(
+                        toolName = "get_current_temperature",
+                        arguments = mapOf(
+                            "latitude" to 55.7558,
+                            "longitude" to 37.6173
+                        )
+                    )
+                    call.respondText("MCP Test: $result", ContentType.Text.Plain)
+                } catch (e: Exception) {
+                    call.respondText("MCP Error: ${e.message}", ContentType.Text.Plain, HttpStatusCode.InternalServerError)
+                }
+            }
         }
+    }.also { server ->
+        // Graceful shutdown для MCP серверов
+        Runtime.getRuntime().addShutdownHook(Thread {
+            println("\n🛑 Останавливаем MCP серверы...")
+            kotlinx.coroutines.runBlocking {
+                mcpManager.stopAllServers()
+            }
+            server.stop(1000, 2000)
+        })
     }.start(wait = true)
 }
