@@ -26,8 +26,8 @@ fun main(): Unit = runBlocking {
     // Создаем MCP сервер
     val server = createMcpServer()
 
-    // Регистрируем инструмент для получения температуры
-    registerWeatherTool(server, weatherClient)
+    // Регистрируем все погодные инструменты
+    registerWeatherTools(server, weatherClient)
 
     logger.info { "Server configured, starting STDIO transport..." }
 
