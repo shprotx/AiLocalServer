@@ -39,7 +39,8 @@ class SimpleMcpManager(private val configPath: String = "mcp-servers.json") {
     data class McpServerConfig(
         val type: String,
         val command: String,
-        val args: List<String>,
+        val args: List<String> = emptyList(),
+        val env: Map<String, String>? = null,
         val description: String? = null
     )
 
@@ -75,8 +76,15 @@ class SimpleMcpManager(private val configPath: String = "mcp-servers.json") {
         logger.info("   Command: ${config.command} ${config.args.joinToString(" ")}")
 
         val process = withContext(Dispatchers.IO) {
-            ProcessBuilder(listOf(config.command) + config.args)
-                .start()
+            val processBuilder = ProcessBuilder(listOf(config.command) + config.args)
+
+            // Добавляем переменные окружения, если указаны
+            config.env?.let { envVars ->
+                processBuilder.environment().putAll(envVars)
+                logger.info("   Environment variables: ${envVars.keys.joinToString(", ")}")
+            }
+
+            processBuilder.start()
         }
 
         logger.info("   PID: ${process.pid()}")
