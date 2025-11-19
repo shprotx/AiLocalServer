@@ -35,22 +35,25 @@ class McpToolHandler(
         logger.info("   Аргументы: ${toolCall.arguments}")
 
         // Конвертируем аргументы из JsonElement в Map<String, Any>
-        val arguments = toolCall.arguments.mapValues { (_, value) ->
-            when (value) {
-                is JsonPrimitive -> {
-                    when {
-                        value.isString -> value.content
-                        value.booleanOrNull != null -> value.boolean
-                        // ВАЖНО: Сначала проверяем longOrNull, потом doubleOrNull
-                        // Иначе целые числа будут преобразованы в Double (7 -> 7.0)
-                        value.longOrNull != null -> value.long
-                        value.doubleOrNull != null -> value.double
-                        else -> value.content
+        // Фильтруем null значения, чтобы не отправлять их в MCP серверы
+        val arguments = toolCall.arguments
+            .filterNot { (_, value) -> value is JsonNull }
+            .mapValues { (_, value) ->
+                when (value) {
+                    is JsonPrimitive -> {
+                        when {
+                            value.isString -> value.content
+                            value.booleanOrNull != null -> value.boolean
+                            // ВАЖНО: Сначала проверяем longOrNull, потом doubleOrNull
+                            // Иначе целые числа будут преобразованы в Double (7 -> 7.0)
+                            value.longOrNull != null -> value.long
+                            value.doubleOrNull != null -> value.double
+                            else -> value.content
+                        }
                     }
+                    else -> value.toString()
                 }
-                else -> value.toString()
             }
-        }
 
         // Вызываем MCP инструмент
         val toolResult = try {

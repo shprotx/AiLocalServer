@@ -18,6 +18,10 @@ object McpSystemPromptBuilder {
         }
 
         val toolsDescription = buildToolsDescription(tools)
+        val hasTelegramTools = tools.any {
+            val name = it["function"]?.jsonObject?.get("name")?.jsonPrimitive?.content ?: ""
+            name.startsWith("tg_")
+        }
 
         return """
 $BASE_PROMPT
@@ -28,9 +32,13 @@ $BASE_PROMPT
 
 $toolsDescription
 
+${if (hasTelegramTools) TELEGRAM_INSTRUCTIONS else ""}
+
+## Правила использования инструментов
+
 Если для ответа на вопрос пользователя нужно использовать инструмент, верни в поле "tool_call" объект с:
 - "name": название инструмента
-- "arguments": объект с аргументами
+- "arguments": объект с аргументами (НЕ ВКЛЮЧАЙ параметры со значением null)
 
 Пример:
 {
@@ -88,5 +96,50 @@ $toolsDescription
   "title": "Краткий заголовок (2-5 слов)",
   "message": "Полный текст ответа"
 }
+    """
+
+    private const val TELEGRAM_INSTRUCTIONS = """
+## Специальные инструкции для Telegram инструментов
+
+**ВАЖНО:** Для работы с Telegram используй ДВУХШАГОВЫЙ подход:
+
+### Шаг 1: Получить список диалогов
+Сначала вызови `tg_dialogs` чтобы получить список всех чатов/каналов.
+Результат содержит массив диалогов с полями:
+- `id` - уникальный идентификатор диалога
+- `name` - название чата/канала
+- `type` - тип (channel, chat, user)
+- `unread_count` - количество непрочитанных
+
+### Шаг 2: Использовать ID диалога
+После получения списка диалогов:
+1. Найди нужный диалог по названию в результатах
+2. Используй его `id` для вызова `tg_dialog`
+
+**Пример правильного workflow:**
+
+Вопрос: "Покажи сообщения из канала Mobile Dev Jobs"
+
+Шаг 1 - Вызываем tg_dialogs:
+{
+  "tool_call": {
+    "name": "tg_dialogs",
+    "arguments": {}
+  }
+}
+
+Получаем результат с ID канала, например: `{"id": "1234567890", "name": "Mobile Dev Jobs", "type": "channel"}`
+
+Шаг 2 - Вызываем tg_dialog с ID:
+{
+  "tool_call": {
+    "name": "tg_dialog",
+    "arguments": {
+      "id": "1234567890"
+    }
+  }
+}
+
+**НЕ ИСПОЛЬЗУЙ название канала напрямую в tg_dialog** - это вызовет ошибку!
     """
 }
