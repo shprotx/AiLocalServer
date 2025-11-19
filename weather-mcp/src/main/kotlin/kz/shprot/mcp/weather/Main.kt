@@ -6,6 +6,7 @@ import io.modelcontextprotocol.kotlin.sdk.ServerCapabilities
 import io.modelcontextprotocol.kotlin.sdk.server.Server
 import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
 import io.modelcontextprotocol.kotlin.sdk.server.StdioServerTransport
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.runBlocking
 import kotlinx.io.asSource
 import kotlinx.io.asSink
@@ -16,7 +17,7 @@ private val logger = KotlinLogging.logger {}
 /**
  * Точка входа MCP-сервера для получения погоды
  */
-fun main() = runBlocking {
+fun main(): Unit = runBlocking {
     logger.info { "Starting Weather MCP Server..." }
 
     // Создаем HTTP клиент для Open-Meteo API
@@ -40,17 +41,18 @@ fun main() = runBlocking {
     try {
         server.connect(transport)
         logger.info { "Weather MCP Server started successfully" }
+
+        // Держим сервер запущенным до отмены корутины
+        awaitCancellation()
     } catch (e: Exception) {
         logger.error(e) { "Failed to start server" }
         weatherClient.close()
         throw e
-    }
-
-    // Graceful shutdown
-    Runtime.getRuntime().addShutdownHook(Thread {
+    } finally {
+        // Graceful shutdown
         logger.info { "Shutting down Weather MCP Server..." }
         weatherClient.close()
-    })
+    }
 }
 
 /**

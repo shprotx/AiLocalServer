@@ -13,7 +13,7 @@ repositories {
 }
 
 kotlin {
-    jvmToolchain(21)
+    jvmToolchain(17)
 }
 
 dependencies {
@@ -61,6 +61,10 @@ tasks.shadowJar {
 
 // Настройка зависимостей задач
 tasks.named("startScripts") {
+    dependsOn(tasks.shadowJar)
+}
+
+tasks.named("startShadowScripts") {
     dependsOn(tasks.shadowJar)
 }
 
