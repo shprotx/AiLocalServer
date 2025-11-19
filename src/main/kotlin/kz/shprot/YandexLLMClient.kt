@@ -45,14 +45,14 @@ class YandexLLMClient(
     /**
      * Отправляет сообщение и возвращает только текст (для обратной совместимости)
      */
-    suspend fun sendMessage(messages: List<Message>, temperature: Double = 0.6): String {
-        return sendMessageWithUsage(messages, temperature).text
+    suspend fun sendMessage(messages: List<Message>, temperature: Double = 0.6, useJsonSchema: Boolean = true): String {
+        return sendMessageWithUsage(messages, temperature, useJsonSchema).text
     }
 
     /**
      * Отправляет сообщение и возвращает текст + информацию о токенах
      */
-    suspend fun sendMessageWithUsage(messages: List<Message>, temperature: Double = 0.6): MessageWithUsage {
+    suspend fun sendMessageWithUsage(messages: List<Message>, temperature: Double = 0.6, useJsonSchema: Boolean = true): MessageWithUsage {
         val request = YandexCompletionRequest(
             modelUri = modelUri,
             completionOptions = CompletionOptions(
@@ -61,7 +61,7 @@ class YandexLLMClient(
                 //maxTokens = "2000"
             ),
             messages = messages,
-            jsonObject = true,
+            jsonObject = useJsonSchema,  // Теперь можно отключить JSON Schema
         )
 
         return runCatching {

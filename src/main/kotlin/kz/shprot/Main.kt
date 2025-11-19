@@ -10,6 +10,9 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kz.shprot.models.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import java.io.File
 
 // Вспомогательная функция для расчета стоимости
@@ -87,6 +90,19 @@ fun main() {
 
     // MCP Tool Handler для обработки вызовов инструментов
     val mcpToolHandler = McpToolHandler(mcpManager, llmClient)
+
+    // Daily Summary Scheduler для автоматического создания сводок
+    val schedulerScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    val dailySummaryScheduler = DailySummaryScheduler(
+        mcpManager = mcpManager,
+        llmClient = llmClient,
+        mcpToolHandler = mcpToolHandler,
+        chatHistory = chatHistory,
+        systemChatId = 1
+    )
+
+    println("📅 Запускаем планировщик Daily Summary...")
+    dailySummaryScheduler.start(schedulerScope)
 
     embeddedServer(Netty, port = 8080) {
         install(ContentNegotiation) {
@@ -385,6 +401,18 @@ fun main() {
                 }
             }
 
+            // Ручной запуск Daily Summary (для тестирования)
+            post("/api/daily-summary/run") {
+                try {
+                    println("🔧 Ручной запуск Daily Summary...")
+                    dailySummaryScheduler.runManually()
+                    call.respond(HttpStatusCode.OK, mapOf("success" to true, "message" to "Daily summary создан успешно"))
+                } catch (e: Exception) {
+                    println("❌ Ошибка при создании daily summary: ${e.message}")
+                    call.respond(HttpStatusCode.InternalServerError, mapOf("error" to e.message))
+                }
+            }
+
             // Упрощенный endpoint для чата с MCP инструментами (без multi-agent)
             post("/api/chat/with-mcp") {
                 val request = call.receive<ChatRequest>()
@@ -441,9 +469,12 @@ fun main() {
             }
         }
     }.also { server ->
-        // Graceful shutdown для MCP серверов
+        // Graceful shutdown для MCP серверов и планировщика
         Runtime.getRuntime().addShutdownHook(Thread {
-            println("\n🛑 Останавливаем MCP серверы...")
+            println("\n🛑 Останавливаем Daily Summary планировщик...")
+            dailySummaryScheduler.stop()
+
+            println("🛑 Останавливаем MCP серверы...")
             kotlinx.coroutines.runBlocking {
                 mcpManager.stopAllServers()
             }

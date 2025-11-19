@@ -78,6 +78,38 @@ class DatabaseManager(private val dbPath: String = "chats.db") {
     }
 
     /**
+     * Создание нового чата с конкретным ID (для системных чатов)
+     * @param id желаемый ID чата
+     * @param title название чата
+     * @return true если успешно создан
+     */
+    fun createChatWithId(id: Int, title: String): Boolean = runCatching {
+        // Проверяем, существует ли чат с таким ID
+        val existingChat = getChat(id)
+        if (existingChat != null) {
+            println("⚠️ Чат с ID=$id уже существует")
+            return false
+        }
+
+        val currentTime = System.currentTimeMillis()
+        val statement = connection?.prepareStatement(
+            "INSERT INTO chats (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)"
+        ) ?: throw IllegalStateException("Database connection is null")
+
+        statement.setInt(1, id)
+        statement.setString(2, title)
+        statement.setLong(3, currentTime)
+        statement.setLong(4, currentTime)
+        statement.executeUpdate()
+
+        println("✅ Создан системный чат: ID=$id, title='$title'")
+        true
+    }.getOrElse { e ->
+        println("❌ Ошибка при создании чата с ID=$id: ${e.message}")
+        false
+    }
+
+    /**
      * Получение списка всех чатов
      * @return список чатов, отсортированных по времени обновления (новые первые)
      */

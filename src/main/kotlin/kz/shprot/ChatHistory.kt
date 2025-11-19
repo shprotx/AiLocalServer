@@ -160,6 +160,25 @@ class ChatHistory(private val db: DatabaseManager) {
     }
 
     /**
+     * Создание чата с конкретным ID (для системных чатов)
+     * @param id желаемый ID чата
+     * @param title название чата
+     * @return true если успешно создан
+     */
+    fun createChatWithId(id: Int, title: String): Boolean {
+        return db.createChatWithId(id, title)
+    }
+
+    /**
+     * Проверка существования чата
+     * @param chatId ID чата
+     * @return true если чат существует
+     */
+    fun chatExists(chatId: Int): Boolean {
+        return db.getChat(chatId) != null
+    }
+
+    /**
      * Получение всех чатов
      */
     fun getAllChats(): List<ChatData> {

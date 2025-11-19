@@ -822,6 +822,110 @@
         .empty-state-subtext {
             font-size: 14px;
         }
+
+        /* Toast notification styles */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            background: #323232;
+            color: #FFFFFF;
+            padding: 16px 24px;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 300px;
+            max-width: 500px;
+            animation: slideIn 0.3s ease-out;
+            cursor: pointer;
+        }
+
+        .toast.success {
+            background: #4CAF50;
+        }
+
+        .toast.error {
+            background: #F44336;
+        }
+
+        .toast.info {
+            background: #2196F3;
+        }
+
+        .toast-icon {
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        .toast-content {
+            flex: 1;
+        }
+
+        .toast-title {
+            font-weight: 500;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .toast-message {
+            font-size: 13px;
+            opacity: 0.9;
+        }
+
+        .toast-close {
+            background: none;
+            border: none;
+            color: #FFFFFF;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 0;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+
+        .toast-close:hover {
+            opacity: 1;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+        }
+
+        .toast.hiding {
+            animation: slideOut 0.3s ease-out forwards;
+        }
     </style>
 </head>
 <body>
@@ -972,6 +1076,81 @@
         };
         let currentFileContent = null;
         let currentFileName = null;
+        let lastSystemChatMessageCount = 0; // Для отслеживания новых сообщений
+        const SYSTEM_CHAT_ID = 1; // ID системного чата для Daily Summaries
+
+        // Toast notification functions
+        function showToast(title, message, type = 'info', duration = 5000) {
+            const toastContainer = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+
+            const icon = type === 'success' ? '✓' : type === 'error' ? '✕' : type === 'info' ? 'ℹ' : '📰';
+
+            toast.innerHTML = `
+                <div class="toast-icon">${icon}</div>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    <div class="toast-message">${message}</div>
+                </div>
+                <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+            `;
+
+            // Клик по toast переключает на системный чат (только для уведомлений о Daily Summary)
+            if (type === 'info' && title.includes('Daily Summary')) {
+                toast.style.cursor = 'pointer';
+                toast.onclick = (e) => {
+                    if (!e.target.classList.contains('toast-close')) {
+                        switchToChat(SYSTEM_CHAT_ID);
+                        toast.remove();
+                    }
+                };
+            }
+
+            toastContainer.appendChild(toast);
+
+            // Auto-remove after duration
+            if (duration > 0) {
+                setTimeout(() => {
+                    toast.classList.add('hiding');
+                    setTimeout(() => toast.remove(), 300);
+                }, duration);
+            }
+        }
+
+        // Проверка новых сообщений в системном чате
+        async function checkForNewDailySummaries() {
+            try {
+                const response = await fetch(`/api/chats/${SYSTEM_CHAT_ID}/messages`);
+                if (!response.ok) return;
+
+                const data = await response.json();
+                const messageCount = data.messages.length;
+
+                // Если это первая проверка, просто запоминаем количество
+                if (lastSystemChatMessageCount === 0) {
+                    lastSystemChatMessageCount = messageCount;
+                    return;
+                }
+
+                // Если появились новые сообщения
+                if (messageCount > lastSystemChatMessageCount) {
+                    const newMessagesCount = messageCount - lastSystemChatMessageCount;
+                    showToast(
+                        '📰 Daily Summary обновлен!',
+                        `Появилось новых сообщений: ${newMessagesCount}. Нажмите для просмотра.`,
+                        'info',
+                        10000 // 10 секунд
+                    );
+                    lastSystemChatMessageCount = messageCount;
+
+                    // Обновляем список чатов (чтобы обновилось время updated_at)
+                    await loadChats();
+                }
+            } catch (error) {
+                console.error('Failed to check for new daily summaries:', error);
+            }
+        }
 
         // Configure marked
         marked.setOptions({
@@ -993,6 +1172,10 @@
             } else {
                 await switchToChat(chats[0].id);
             }
+
+            // Запускаем проверку новых Daily Summaries каждые 30 секунд
+            await checkForNewDailySummaries(); // Первая проверка сразу
+            setInterval(checkForNewDailySummaries, 30000); // Затем каждые 30 секунд
         }
 
         // API functions
@@ -1531,5 +1714,8 @@
         // Initialize app
         init();
     </script>
+
+    <!-- Toast notifications container -->
+    <div class="toast-container" id="toastContainer"></div>
 </body>
 </html>
