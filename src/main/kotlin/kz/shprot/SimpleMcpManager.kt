@@ -170,8 +170,21 @@ class SimpleMcpManager(private val configPath: String = "mcp-servers.json") {
                 putJsonObject("arguments") {
                     arguments.forEach { (k, v) ->
                         when (v) {
-                            is Number -> put(k, v.toDouble())
+                            is Int -> put(k, v)
+                            is Long -> put(k, v)
+                            is Double -> put(k, v)
+                            is Float -> put(k, v.toDouble())
+                            is Number -> {
+                                // Для других типов Number пробуем определить, целое или дробное
+                                val doubleVal = v.toDouble()
+                                if (doubleVal % 1.0 == 0.0) {
+                                    put(k, v.toLong())
+                                } else {
+                                    put(k, doubleVal)
+                                }
+                            }
                             is String -> put(k, v)
+                            is Boolean -> put(k, v)
                             else -> put(k, v.toString())
                         }
                     }

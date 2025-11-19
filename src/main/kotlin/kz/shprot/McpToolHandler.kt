@@ -41,8 +41,10 @@ class McpToolHandler(
                     when {
                         value.isString -> value.content
                         value.booleanOrNull != null -> value.boolean
-                        value.doubleOrNull != null -> value.double
+                        // ВАЖНО: Сначала проверяем longOrNull, потом doubleOrNull
+                        // Иначе целые числа будут преобразованы в Double (7 -> 7.0)
                         value.longOrNull != null -> value.long
+                        value.doubleOrNull != null -> value.double
                         else -> value.content
                     }
                 }
