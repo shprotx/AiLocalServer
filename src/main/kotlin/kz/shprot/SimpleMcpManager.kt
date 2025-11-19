@@ -25,6 +25,9 @@ class SimpleMcpManager(private val configPath: String = "mcp-servers.json") {
     // Карта: название инструмента -> название сервера
     private val toolToServer = mutableMapOf<String, String>()
 
+    // Карта: название инструмента -> схема инструмента (для Function Calling)
+    private val toolSchemas = mutableMapOf<String, JsonObject>()
+
     data class ServerProcess(
         val process: Process,
         val writer: BufferedWriter,
@@ -138,8 +141,10 @@ class SimpleMcpManager(private val configPath: String = "mcp-servers.json") {
 
         val tools = toolsResponse["result"]?.jsonObject?.get("tools")?.jsonArray ?: emptyList()
         tools.forEach { tool ->
-            val toolName = tool.jsonObject["name"]?.jsonPrimitive?.content!!
+            val toolObj = tool.jsonObject
+            val toolName = toolObj["name"]?.jsonPrimitive?.content!!
             toolToServer[toolName] = serverName
+            toolSchemas[toolName] = toolObj // Сохраняем полную схему
             logger.info("   📋 Tool: $toolName")
         }
     }
@@ -211,6 +216,33 @@ class SimpleMcpManager(private val configPath: String = "mcp-servers.json") {
             ?: throw IOException("Server closed connection")
 
         json.parseToJsonElement(line).jsonObject
+    }
+
+    /**
+     * Получает список инструментов в формате для Yandex Function Calling
+     */
+    fun getToolsForFunctionCalling(): List<JsonObject> {
+        return toolSchemas.map { (toolName, schema) ->
+            buildJsonObject {
+                put("type", "function")
+                putJsonObject("function") {
+                    put("name", toolName)
+                    put("description", schema["description"]?.jsonPrimitive?.content ?: "MCP tool: $toolName")
+
+                    // Копируем inputSchema как parameters
+                    val inputSchema = schema["inputSchema"]?.jsonObject
+                    if (inputSchema != null) {
+                        put("parameters", inputSchema)
+                    } else {
+                        // Fallback - пустая схема
+                        putJsonObject("parameters") {
+                            put("type", "object")
+                            putJsonObject("properties") {}
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /**

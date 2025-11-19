@@ -56,7 +56,14 @@ data class ContextWindowUsage(
 @Serializable
 data class LLMStructuredResponse(
     val title: String,
-    val message: String
+    val message: String,
+    val tool_call: ToolCall? = null // Запрос на вызов MCP инструмента
+)
+
+@Serializable
+data class ToolCall(
+    val name: String,
+    val arguments: Map<String, kotlinx.serialization.json.JsonElement>
 )
 
 // Модели для работы с чатами

@@ -85,6 +85,9 @@ fun main() {
         }
     }
 
+    // MCP Tool Handler для обработки вызовов инструментов
+    val mcpToolHandler = McpToolHandler(mcpManager, llmClient)
+
     embeddedServer(Netty, port = 8080) {
         install(ContentNegotiation) {
             json()
@@ -314,6 +317,61 @@ fun main() {
                 } catch (e: Exception) {
                     call.respondText("MCP Error: ${e.message}", ContentType.Text.Plain, HttpStatusCode.InternalServerError)
                 }
+            }
+
+            // Упрощенный endpoint для чата с MCP инструментами (без multi-agent)
+            post("/api/chat/with-mcp") {
+                val request = call.receive<ChatRequest>()
+                println("=== MCP Chat Request ===")
+                println("Message: ${request.message}")
+                println("ChatId: ${request.chatId}")
+
+                // Загружаем чат
+                chatHistory.loadChat(request.chatId)
+
+                // Добавляем сообщение пользователя
+                chatHistory.addMessage(request.chatId, "user", request.message)
+
+                // Строим system prompt с MCP инструментами
+                val systemPromptWithMcp = McpSystemPromptBuilder.buildSystemPrompt(mcpManager)
+
+                // Получаем историю
+                val history = chatHistory.getMessages(request.chatId)
+
+                // Строим сообщения для LLM
+                val messages = listOf(Message("system", systemPromptWithMcp)) + history
+
+                // Первый запрос к LLM
+                val firstResponse = llmClient.sendMessageWithHistoryAndUsage(
+                    messages = messages,
+                    temperature = request.temperature ?: 0.6
+                )
+
+                println("=== First LLM Response ===")
+                println("Title: ${firstResponse.response.title}")
+                println("Tool call: ${firstResponse.response.tool_call}")
+
+                // Обрабатываем tool_call если есть
+                val finalResponse = mcpToolHandler.handleToolCall(
+                    llmResponse = firstResponse.response,
+                    conversationHistory = messages,
+                    temperature = request.temperature ?: 0.6
+                )
+
+                // Сохраняем финальный ответ
+                chatHistory.addMessage(request.chatId, "assistant", finalResponse.message)
+
+                // Формируем ответ
+                val response = ChatResponse(
+                    response = finalResponse.message,
+                    title = finalResponse.title,
+                    isMultiAgent = false,
+                    agents = null,
+                    tokenUsage = usageToTokenInfo(firstResponse.usage, modelType),
+                    contextWindowUsage = null
+                )
+
+                call.respond(response)
             }
         }
     }.also { server ->
