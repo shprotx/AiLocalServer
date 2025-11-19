@@ -234,6 +234,72 @@ fun main() {
                 println("Сжатие существует: ${compressionExists != null}")
                 println("Будет использовано: ${request.compressContext && compressionExists != null}")
 
+                // 🔧 MCP ПОДДЕРЖКА: Сначала пробуем обработать через MCP инструменты
+                // Это позволяет быстро отвечать на простые запросы с использованием инструментов
+                val mcpSystemPrompt = McpSystemPromptBuilder.buildSystemPrompt(mcpManager)
+                val messagesForMcp = if (request.compressContext) {
+                    // Заменяем system prompt на MCP-версию
+                    val compressed = chatHistory.buildMessagesWithCompression(
+                        request.chatId, request.message, request.compressContext, request.compressSystemPrompt
+                    )
+                    listOf(Message("system", mcpSystemPrompt)) + compressed.drop(1)
+                } else {
+                    listOf(Message("system", mcpSystemPrompt)) +
+                    history +
+                    listOf(Message("user", request.message))
+                }
+
+                println("=== Проверка на MCP tool_call ===")
+                val mcpCheckResponse = llmClient.sendMessageWithHistoryAndUsage(
+                    messages = messagesForMcp,
+                    temperature = request.temperature ?: 0.6
+                )
+
+                // Если LLM запросил вызов инструмента - обрабатываем его
+                if (mcpCheckResponse.response.tool_call != null) {
+                    println("🔧 Обнаружен tool_call, обрабатываем через MCP")
+
+                    val finalMcpResponse = mcpToolHandler.handleToolCall(
+                        llmResponse = mcpCheckResponse.response,
+                        conversationHistory = messagesForMcp,
+                        temperature = request.temperature ?: 0.6
+                    )
+
+                    // Конвертируем Usage в TokenUsageInfo
+                    val tokenInfo = usageToTokenInfo(mcpCheckResponse.usage, modelType)
+
+                    // Вычисляем использование контекстного окна
+                    val contextWindowUsage = mcpCheckResponse.usage?.let { usage ->
+                        val inputTokens = usage.inputTextTokens.toIntOrNull() ?: 0
+                        val isActuallyCompressed = request.compressContext &&
+                            chatHistory.getCompressionInfo(request.chatId) != null
+                        chatHistory.calculateContextWindowUsage(
+                            chatId = request.chatId,
+                            currentRequestTokens = inputTokens,
+                            isCompressed = isActuallyCompressed
+                        )
+                    }
+
+                    // Сохраняем сообщения в истории
+                    chatHistory.addMessage(request.chatId, "user", request.message)
+                    chatHistory.addMessage(request.chatId, "assistant", finalMcpResponse.message, mcpCheckResponse.usage)
+
+                    // Возвращаем ответ от MCP
+                    val mcpResponse = ChatResponse(
+                        response = finalMcpResponse.message,
+                        title = finalMcpResponse.title,
+                        isMultiAgent = false,
+                        agents = null,
+                        tokenUsage = tokenInfo,
+                        contextWindowUsage = contextWindowUsage
+                    )
+
+                    call.respond(mcpResponse)
+                    return@post
+                }
+
+                println("=== MCP tool не требуется, используем multi-agent систему ===")
+
                 // Обрабатываем сообщение через multi-agent систему
                 val multiAgentResponse = agentManager.processMessage(
                     chatId = request.chatId,
