@@ -20,7 +20,7 @@ class DailySummaryScheduler(
 
     // Настройки
     private val targetChannelName = "Mobile Dev Jobs" // Название канала для мониторинга
-    private val summaryIntervalMinutes = 3L // Интервал в минутах (для тестирования)
+    private val summaryIntervalMinutes = 60 * 24L // Интервал в минутах (для тестирования)
     private val temperature = 0.6
 
     /**
