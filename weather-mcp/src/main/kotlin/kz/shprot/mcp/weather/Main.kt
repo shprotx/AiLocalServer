@@ -7,9 +7,9 @@ import io.modelcontextprotocol.kotlin.sdk.server.Server
 import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
 import io.modelcontextprotocol.kotlin.sdk.server.StdioServerTransport
 import kotlinx.coroutines.runBlocking
-import okio.buffer
-import okio.source
-import okio.sink
+import kotlinx.io.asSource
+import kotlinx.io.asSink
+import kotlinx.io.buffered
 
 private val logger = KotlinLogging.logger {}
 
@@ -30,10 +30,10 @@ fun main() = runBlocking {
 
     logger.info { "Server configured, starting STDIO transport..." }
 
-    // Создаем STDIO transport с Okio
+    // Создаем STDIO transport с kotlinx-io
     val transport = StdioServerTransport(
-        inputStream = System.`in`.source().buffer(),
-        outputStream = System.out.sink().buffer()
+        inputStream = System.`in`.asSource().buffered(),
+        outputStream = System.out.asSink().buffered()
     )
 
     // Подключаем сервер к транспорту и запускаем

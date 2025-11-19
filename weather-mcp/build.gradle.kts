@@ -20,9 +20,6 @@ dependencies {
     // Kotlin MCP SDK
     implementation("io.modelcontextprotocol:kotlin-sdk:0.6.0")
 
-    // Okio для buffering Source/Sink
-    implementation("com.squareup.okio:okio:3.9.1")
-
     // Ktor для HTTP и MCP SDK
     val ktorVersion = "3.0.3"
     // Ktor Client для HTTP запросов к Open-Meteo API
@@ -60,6 +57,19 @@ tasks.shadowJar {
     exclude("META-INF/*.SF")
     exclude("META-INF/*.DSA")
     exclude("META-INF/*.RSA")
+}
+
+// Настройка зависимостей задач
+tasks.named("startScripts") {
+    dependsOn(tasks.shadowJar)
+}
+
+tasks.named("distTar") {
+    dependsOn(tasks.shadowJar)
+}
+
+tasks.named("distZip") {
+    dependsOn(tasks.shadowJar)
 }
 
 tasks.build {
