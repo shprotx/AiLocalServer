@@ -40,10 +40,44 @@ ${if (hasTelegramTools) TELEGRAM_INSTRUCTIONS else ""}
 - "name": название инструмента
 - "arguments": объект с аргументами (НЕ ВКЛЮЧАЙ параметры со значением null)
 
-Пример:
+### Примеры использования основных инструментов:
+
+**write_file** - Создать/перезаписать файл:
 {
-  "title": "Получаю температуру",
-  "message": "Сейчас узнаю текущую температуру в Москве",
+  "title": "Сохраняю в файл",
+  "message": "Сохраняю температуру в файл moscow-temp.txt",
+  "tool_call": {
+    "name": "write_file",
+    "arguments": {
+      "path": "moscow-temp.txt",
+      "content": "Температура: -1.2°C"
+    }
+  }
+}
+
+**read_file** - Прочитать файл:
+{
+  "tool_call": {
+    "name": "read_file",
+    "arguments": {
+      "path": "moscow-temp.txt"
+    }
+  }
+}
+
+**fetch** - Получить контент из интернета:
+{
+  "tool_call": {
+    "name": "fetch",
+    "arguments": {
+      "url": "https://example.com",
+      "max_length": 5000
+    }
+  }
+}
+
+**get_current_temperature** - Узнать температуру:
+{
   "tool_call": {
     "name": "get_current_temperature",
     "arguments": {
