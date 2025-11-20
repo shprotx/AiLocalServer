@@ -1411,7 +1411,7 @@
             }
         }
 
-        function createTokenInfo(tokenUsage, usedTools = null) {
+        function createTokenInfo(tokenUsage) {
             if (!tokenUsage) return null;
 
             const tokenInfo = document.createElement('div');
@@ -1438,44 +1438,47 @@
             tokenInfo.appendChild(totalItem);
             tokenInfo.appendChild(costItem);
 
-            // Добавляем использованные инструменты если они есть
-            if (usedTools && usedTools.length > 0) {
-                const toolsItem = document.createElement('div');
-                toolsItem.className = 'token-info-item';
-                toolsItem.style.gridColumn = '1 / -1'; // Занимает всю ширину
-                toolsItem.style.marginTop = '4px';
-                toolsItem.style.paddingTop = '8px';
-                toolsItem.style.borderTop = '1px solid rgba(0, 0, 0, 0.1)';
-
-                const toolsLabel = document.createElement('span');
-                toolsLabel.className = 'token-info-label';
-                toolsLabel.textContent = '🔧 Инструменты:';
-                toolsItem.appendChild(toolsLabel);
-
-                const toolsList = document.createElement('span');
-                toolsList.style.display = 'inline-flex';
-                toolsList.style.flexWrap = 'wrap';
-                toolsList.style.gap = '4px';
-                toolsList.style.marginLeft = '6px';
-
-                usedTools.forEach(tool => {
-                    const toolBadge = document.createElement('span');
-                    toolBadge.style.display = 'inline-block';
-                    toolBadge.style.padding = '2px 6px';
-                    toolBadge.style.backgroundColor = '#E3F2FD';
-                    toolBadge.style.color = '#1565C0';
-                    toolBadge.style.borderRadius = '10px';
-                    toolBadge.style.fontSize = '11px';
-                    toolBadge.style.fontWeight = '500';
-                    toolBadge.textContent = tool;
-                    toolsList.appendChild(toolBadge);
-                });
-
-                toolsItem.appendChild(toolsList);
-                tokenInfo.appendChild(toolsItem);
-            }
-
             return tokenInfo;
+        }
+
+        function createUsedToolsBlock(usedTools) {
+            if (!usedTools || usedTools.length === 0) return null;
+
+            const toolsBlock = document.createElement('div');
+            toolsBlock.style.marginTop = '8px';
+            toolsBlock.style.padding = '8px 12px';
+            toolsBlock.style.backgroundColor = '#E3F2FD';
+            toolsBlock.style.borderLeft = '3px solid #2196F3';
+            toolsBlock.style.borderRadius = '4px';
+            toolsBlock.style.fontSize = '13px';
+
+            const toolsLabel = document.createElement('div');
+            toolsLabel.style.fontWeight = '600';
+            toolsLabel.style.color = '#1565C0';
+            toolsLabel.style.marginBottom = '6px';
+            toolsLabel.textContent = '🔧 Использованные инструменты:';
+            toolsBlock.appendChild(toolsLabel);
+
+            const toolsList = document.createElement('div');
+            toolsList.style.display = 'flex';
+            toolsList.style.flexWrap = 'wrap';
+            toolsList.style.gap = '6px';
+
+            usedTools.forEach(tool => {
+                const toolBadge = document.createElement('span');
+                toolBadge.style.display = 'inline-block';
+                toolBadge.style.padding = '3px 10px';
+                toolBadge.style.backgroundColor = '#BBDEFB';
+                toolBadge.style.color = '#0D47A1';
+                toolBadge.style.borderRadius = '12px';
+                toolBadge.style.fontSize = '12px';
+                toolBadge.style.fontWeight = '500';
+                toolBadge.textContent = tool;
+                toolsList.appendChild(toolBadge);
+            });
+
+            toolsBlock.appendChild(toolsList);
+            return toolsBlock;
         }
 
         function addMessage(text, isUser, title = null, isMultiAgent = false, agents = null, tokenUsage = null, usedTools = null) {
@@ -1523,10 +1526,16 @@
                 synthesisDiv.appendChild(synthesisContent);
 
                 if (tokenUsage) {
-                    const tokenInfo = createTokenInfo(tokenUsage, usedTools);
+                    const tokenInfo = createTokenInfo(tokenUsage);
                     if (tokenInfo) {
                         synthesisDiv.appendChild(tokenInfo);
                     }
+                }
+
+                // Добавляем блок с инструментами отдельно под статистикой
+                const toolsBlock = createUsedToolsBlock(usedTools);
+                if (toolsBlock) {
+                    synthesisDiv.appendChild(toolsBlock);
                 }
 
                 addCopyButtons(synthesisDiv);
@@ -1553,10 +1562,16 @@
                 messageDiv.appendChild(contentDiv);
 
                 if (tokenUsage) {
-                    const tokenInfo = createTokenInfo(tokenUsage, usedTools);
+                    const tokenInfo = createTokenInfo(tokenUsage);
                     if (tokenInfo) {
                         messageDiv.appendChild(tokenInfo);
                     }
+                }
+
+                // Добавляем блок с инструментами отдельно под статистикой
+                const toolsBlock = createUsedToolsBlock(usedTools);
+                if (toolsBlock) {
+                    messageDiv.appendChild(toolsBlock);
                 }
 
                 addCopyButtons(messageDiv);

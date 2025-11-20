@@ -59,13 +59,41 @@ data class LLMStructuredResponse(
     val title: String,
     val message: String,
     @kotlinx.serialization.SerialName("tool_calls")
-    private val toolCallsPlural: List<ToolCall>? = null, // Новый формат (множественное число)
+    private val toolCallsPlural: kotlinx.serialization.json.JsonElement? = null, // Новый формат (множественное число)
     @kotlinx.serialization.SerialName("tool_call")
-    private val toolCallSingular: List<ToolCall>? = null // Старый формат (единственное число, но с массивом)
+    private val toolCallSingular: kotlinx.serialization.json.JsonElement? = null // Старый формат (единственное число, может быть массивом или пустым объектом)
 ) {
-    // Публичное свойство которое проверяет оба варианта
+    companion object {
+        private val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+    }
+
+    // Публичное свойство которое проверяет оба варианта и парсит только массивы
     val tool_calls: List<ToolCall>?
-        get() = toolCallsPlural ?: toolCallSingular
+        get() {
+            // Проверяем toolCallsPlural (новый формат)
+            toolCallsPlural?.let { element ->
+                if (element is kotlinx.serialization.json.JsonArray) {
+                    return try {
+                        json.decodeFromJsonElement(kotlinx.serialization.serializer<List<ToolCall>>(), element)
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+            }
+
+            // Проверяем toolCallSingular (старый формат)
+            toolCallSingular?.let { element ->
+                if (element is kotlinx.serialization.json.JsonArray) {
+                    return try {
+                        json.decodeFromJsonElement(kotlinx.serialization.serializer<List<ToolCall>>(), element)
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+            }
+
+            return null
+        }
 }
 
 @Serializable
