@@ -105,3 +105,27 @@ data class ChatMessage(
 data class MessagesResponse(
     val messages: List<ChatMessage>
 )
+
+// Модели для MCP Orchestrator
+
+@Serializable
+data class OrchestratorRequest(
+    val task: String,
+    val temperature: Double? = 0.6
+)
+
+@Serializable
+data class OrchestratorResponse(
+    val success: Boolean,
+    val finalAnswer: String,
+    val toolCalls: List<ToolCallInfo>,
+    val iterations: Int
+)
+
+@Serializable
+data class ToolCallInfo(
+    val iteration: Int,
+    val toolName: String,
+    val parameters: String,
+    val result: String
+)

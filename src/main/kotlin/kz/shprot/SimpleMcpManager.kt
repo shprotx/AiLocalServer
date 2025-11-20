@@ -267,6 +267,52 @@ class SimpleMcpManager(private val configPath: String = "mcp-servers.json") {
     }
 
     /**
+     * Получает детальную информацию о всех инструментах для MCP Orchestrator
+     */
+    fun listAllToolsDetailed(): List<ToolInfo> {
+        return toolSchemas.map { (toolName, schema) ->
+            val description = schema["description"]?.jsonPrimitive?.content ?: "MCP tool"
+            val inputSchema = schema["inputSchema"]?.jsonObject
+            val properties = inputSchema?.get("properties")?.jsonObject
+
+            val parametersDescription = if (properties != null && properties.isNotEmpty()) {
+                properties.keys.joinToString(", ") { key ->
+                    val prop = properties[key]?.jsonObject
+                    val type = prop?.get("type")?.jsonPrimitive?.content ?: "any"
+                    val desc = prop?.get("description")?.jsonPrimitive?.content ?: ""
+                    "$key: $type${if (desc.isNotEmpty()) " - $desc" else ""}"
+                }
+            } else {
+                // Fallback: используем сырую схему как строку для отладки
+                val schemaStr = inputSchema?.toString() ?: "no schema"
+                logger.debug("Tool $toolName has no properties. Schema: $schemaStr")
+
+                // Для инструментов без явных properties, пытаемся извлечь информацию из описания
+                // или показываем что параметры определяются динамически
+                if (inputSchema != null) {
+                    "параметры определяются схемой (см. документацию MCP сервера)"
+                } else {
+                    "параметры не определены"
+                }
+            }
+
+            ToolInfo(
+                name = toolName,
+                description = description,
+                parameters = parametersDescription,
+                serverName = toolToServer[toolName] ?: "unknown"
+            )
+        }
+    }
+
+    data class ToolInfo(
+        val name: String,
+        val description: String,
+        val parameters: String,
+        val serverName: String
+    )
+
+    /**
      * Останавливает все серверы
      */
     suspend fun stopAllServers() {

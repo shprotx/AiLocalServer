@@ -46,7 +46,7 @@ fun usageToTokenInfo(usage: kz.shprot.models.Usage?, modelType: String): kz.shpr
 fun main() {
     val apiKey = System.getenv("YANDEX_API_KEY")
     val folderId = System.getenv("YANDEX_FOLDER_ID")
-    val modelType = "yandexgpt"  // По умолчанию полная модель
+    val modelType = "yandexgpt-lite"  // По умолчанию полная модель
 
     if (apiKey.isNullOrBlank() || folderId.isNullOrBlank()) {
         println("Ошибка: Необходимо установить переменные окружения:")
@@ -103,6 +103,14 @@ fun main() {
 
     println("📅 Запускаем планировщик Daily Summary...")
     dailySummaryScheduler.start(schedulerScope)
+
+    // MCP Orchestrator для автоматической композиции инструментов
+    val mcpOrchestrator = McpOrchestrator(
+        mcpManager = mcpManager,
+        llmClient = llmClient,
+        maxIterations = 15
+    )
+    println("🎯 MCP Orchestrator инициализирован")
 
     embeddedServer(Netty, port = 8080) {
         install(ContentNegotiation) {
@@ -401,6 +409,19 @@ fun main() {
                 }
             }
 
+            // Получение списка доступных MCP инструментов (для отладки)
+            get("/api/mcp-tools") {
+                val tools = mcpManager.listAllToolsDetailed()
+                call.respond(mapOf(
+                    "tools" to tools.map { mapOf(
+                        "name" to it.name,
+                        "description" to it.description,
+                        "parameters" to it.parameters,
+                        "server" to it.serverName
+                    )}
+                ))
+            }
+
             // Ручной запуск Daily Summary (для тестирования)
             post("/api/daily-summary/run") {
                 try {
@@ -466,6 +487,46 @@ fun main() {
                 )
 
                 call.respond(response)
+            }
+
+            // MCP Orchestrator - автоматическая композиция инструментов
+            post("/api/mcp-orchestrator") {
+                val request = call.receive<OrchestratorRequest>()
+                println("=== MCP Orchestrator Request ===")
+                println("Task: ${request.task}")
+                println("Temperature: ${request.temperature}")
+
+                try {
+                    // Выполняем задачу через оркестратор
+                    val result = mcpOrchestrator.executeTask(
+                        userRequest = request.task,
+                        temperature = request.temperature ?: 0.6
+                    )
+
+                    // Формируем ответ
+                    val response = OrchestratorResponse(
+                        success = result.success,
+                        finalAnswer = result.finalAnswer,
+                        toolCalls = result.toolCalls.map { toolCall ->
+                            ToolCallInfo(
+                                iteration = toolCall.iteration,
+                                toolName = toolCall.toolName,
+                                parameters = toolCall.parameters.toString(),
+                                result = toolCall.result.take(500) // Ограничиваем длину для JSON
+                            )
+                        },
+                        iterations = result.iterations
+                    )
+
+                    call.respond(response)
+                } catch (e: Exception) {
+                    println("❌ Ошибка в MCP Orchestrator: ${e.message}")
+                    e.printStackTrace()
+                    call.respond(
+                        HttpStatusCode.InternalServerError,
+                        mapOf("error" to e.message)
+                    )
+                }
             }
         }
     }.also { server ->
