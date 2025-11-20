@@ -36,55 +36,48 @@ ${if (hasTelegramTools) TELEGRAM_INSTRUCTIONS else ""}
 
 ## Правила использования инструментов
 
-Если для ответа на вопрос пользователя нужно использовать инструмент, верни в поле "tool_call" объект с:
+Если для ответа на вопрос пользователя нужно использовать инструменты, верни в поле "tool_calls" массив объектов, каждый с:
 - "name": название инструмента
 - "arguments": объект с аргументами (НЕ ВКЛЮЧАЙ параметры со значением null)
 
-### Примеры использования основных инструментов:
+ВАЖНО: Можно вызвать НЕСКОЛЬКО инструментов в одном запросе, просто добавь их в массив "tool_calls"!
 
-**write_file** - Создать/перезаписать файл:
+### Примеры использования инструментов:
+
+**Пример 1: Один инструмент**
 {
-  "title": "Сохраняю в файл",
-  "message": "Сохраняю температуру в файл moscow-temp.txt",
-  "tool_call": {
-    "name": "write_file",
-    "arguments": {
-      "path": "moscow-temp.txt",
-      "content": "Температура: -1.2°C"
+  "title": "Читаю файл",
+  "message": "Читаю содержимое файла moscow-temp.txt",
+  "tool_calls": [
+    {
+      "name": "read_file",
+      "arguments": {
+        "path": "moscow-temp.txt"
+      }
     }
-  }
+  ]
 }
 
-**read_file** - Прочитать файл:
+**Пример 2: НЕСКОЛЬКО инструментов одновременно**
 {
-  "tool_call": {
-    "name": "read_file",
-    "arguments": {
-      "path": "moscow-temp.txt"
+  "title": "Узнаю температуру и сохраняю",
+  "message": "Узнаю текущую температуру в Москве и сохраню в файл",
+  "tool_calls": [
+    {
+      "name": "get_current_temperature",
+      "arguments": {
+        "latitude": 55.7558,
+        "longitude": 37.6173
+      }
+    },
+    {
+      "name": "write_file",
+      "arguments": {
+        "path": "moscow-temp.txt",
+        "content": "Температура будет записана после получения"
+      }
     }
-  }
-}
-
-**fetch** - Получить контент из интернета:
-{
-  "tool_call": {
-    "name": "fetch",
-    "arguments": {
-      "url": "https://example.com",
-      "max_length": 5000
-    }
-  }
-}
-
-**get_current_temperature** - Узнать температуру:
-{
-  "tool_call": {
-    "name": "get_current_temperature",
-    "arguments": {
-      "latitude": 55.7558,
-      "longitude": 37.6173
-    }
-  }
+  ]
 }
 
 После получения результата от инструмента, ты получишь новое сообщение с результатом и сможешь сформулировать финальный ответ.
@@ -156,22 +149,26 @@ ${if (hasTelegramTools) TELEGRAM_INSTRUCTIONS else ""}
 
 Шаг 1 - Вызываем tg_dialogs:
 {
-  "tool_call": {
-    "name": "tg_dialogs",
-    "arguments": {}
-  }
+  "tool_calls": [
+    {
+      "name": "tg_dialogs",
+      "arguments": {}
+    }
+  ]
 }
 
 Получаем результат с ID канала, например: `{"id": "1234567890", "name": "Mobile Dev Jobs", "type": "channel"}`
 
 Шаг 2 - Вызываем tg_dialog с ID:
 {
-  "tool_call": {
-    "name": "tg_dialog",
-    "arguments": {
-      "id": "1234567890"
+  "tool_calls": [
+    {
+      "name": "tg_dialog",
+      "arguments": {
+        "id": "1234567890"
+      }
     }
-  }
+  ]
 }
 
 **НЕ ИСПОЛЬЗУЙ название канала напрямую в tg_dialog** - это вызовет ошибку!

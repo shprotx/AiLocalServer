@@ -273,17 +273,17 @@ fun main() {
                     listOf(Message("user", request.message))
                 }
 
-                println("=== Проверка на MCP tool_call ===")
+                println("=== Проверка на MCP tool_calls ===")
                 val mcpCheckResponse = llmClient.sendMessageWithHistoryAndUsage(
                     messages = messagesForMcp,
                     temperature = request.temperature ?: 0.6
                 )
 
-                // Если LLM запросил вызов инструмента - обрабатываем его
-                if (mcpCheckResponse.response.tool_call != null) {
-                    println("🔧 Обнаружен tool_call, обрабатываем через MCP")
+                // Если LLM запросил вызов инструментов - обрабатываем их
+                if (!mcpCheckResponse.response.tool_calls.isNullOrEmpty()) {
+                    println("🔧 Обнаружены tool_calls (${mcpCheckResponse.response.tool_calls!!.size}), обрабатываем через MCP")
 
-                    val finalMcpResponse = mcpToolHandler.handleToolCall(
+                    val toolCallResult = mcpToolHandler.handleToolCalls(
                         llmResponse = mcpCheckResponse.response,
                         conversationHistory = messagesForMcp,
                         temperature = request.temperature ?: 0.6
@@ -306,16 +306,17 @@ fun main() {
 
                     // Сохраняем сообщения в истории
                     chatHistory.addMessage(request.chatId, "user", request.message)
-                    chatHistory.addMessage(request.chatId, "assistant", finalMcpResponse.message, mcpCheckResponse.usage)
+                    chatHistory.addMessage(request.chatId, "assistant", toolCallResult.response.message, mcpCheckResponse.usage)
 
-                    // Возвращаем ответ от MCP
+                    // Возвращаем ответ от MCP с информацией об использованных инструментах
                     val mcpResponse = ChatResponse(
-                        response = finalMcpResponse.message,
-                        title = finalMcpResponse.title,
+                        response = toolCallResult.response.message,
+                        title = toolCallResult.response.title,
                         isMultiAgent = false,
                         agents = null,
                         tokenUsage = tokenInfo,
-                        contextWindowUsage = contextWindowUsage
+                        contextWindowUsage = contextWindowUsage,
+                        usedTools = toolCallResult.usedTools.takeIf { it.isNotEmpty() } // Передаем использованные инструменты
                     )
 
                     call.respond(mcpResponse)
@@ -464,26 +465,27 @@ fun main() {
 
                 println("=== First LLM Response ===")
                 println("Title: ${firstResponse.response.title}")
-                println("Tool call: ${firstResponse.response.tool_call}")
+                println("Tool calls: ${firstResponse.response.tool_calls?.map { it.name }}")
 
-                // Обрабатываем tool_call если есть
-                val finalResponse = mcpToolHandler.handleToolCall(
+                // Обрабатываем tool_calls если есть
+                val toolCallResult = mcpToolHandler.handleToolCalls(
                     llmResponse = firstResponse.response,
                     conversationHistory = messages,
                     temperature = request.temperature ?: 0.6
                 )
 
                 // Сохраняем финальный ответ
-                chatHistory.addMessage(request.chatId, "assistant", finalResponse.message)
+                chatHistory.addMessage(request.chatId, "assistant", toolCallResult.response.message)
 
-                // Формируем ответ
+                // Формируем ответ с информацией об использованных инструментах
                 val response = ChatResponse(
-                    response = finalResponse.message,
-                    title = finalResponse.title,
+                    response = toolCallResult.response.message,
+                    title = toolCallResult.response.title,
                     isMultiAgent = false,
                     agents = null,
                     tokenUsage = usageToTokenInfo(firstResponse.usage, modelType),
-                    contextWindowUsage = null
+                    contextWindowUsage = null,
+                    usedTools = toolCallResult.usedTools.takeIf { it.isNotEmpty() }
                 )
 
                 call.respond(response)

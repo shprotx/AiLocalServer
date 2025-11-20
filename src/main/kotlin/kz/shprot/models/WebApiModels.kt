@@ -18,7 +18,8 @@ data class ChatResponse(
     val isMultiAgent: Boolean = false,
     val agents: List<AgentResponseData>? = null,
     val tokenUsage: TokenUsageInfo? = null,
-    val contextWindowUsage: ContextWindowUsage? = null
+    val contextWindowUsage: ContextWindowUsage? = null,
+    val usedTools: List<String>? = null // Список использованных MCP инструментов
 )
 
 @Serializable
@@ -57,8 +58,15 @@ data class ContextWindowUsage(
 data class LLMStructuredResponse(
     val title: String,
     val message: String,
-    val tool_call: ToolCall? = null // Запрос на вызов MCP инструмента
-)
+    @kotlinx.serialization.SerialName("tool_calls")
+    private val toolCallsPlural: List<ToolCall>? = null, // Новый формат (множественное число)
+    @kotlinx.serialization.SerialName("tool_call")
+    private val toolCallSingular: List<ToolCall>? = null // Старый формат (единственное число, но с массивом)
+) {
+    // Публичное свойство которое проверяет оба варианта
+    val tool_calls: List<ToolCall>?
+        get() = toolCallsPlural ?: toolCallSingular
+}
 
 @Serializable
 data class ToolCall(

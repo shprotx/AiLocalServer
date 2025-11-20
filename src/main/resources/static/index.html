@@ -1411,7 +1411,7 @@
             }
         }
 
-        function createTokenInfo(tokenUsage) {
+        function createTokenInfo(tokenUsage, usedTools = null) {
             if (!tokenUsage) return null;
 
             const tokenInfo = document.createElement('div');
@@ -1438,10 +1438,47 @@
             tokenInfo.appendChild(totalItem);
             tokenInfo.appendChild(costItem);
 
+            // Добавляем использованные инструменты если они есть
+            if (usedTools && usedTools.length > 0) {
+                const toolsItem = document.createElement('div');
+                toolsItem.className = 'token-info-item';
+                toolsItem.style.gridColumn = '1 / -1'; // Занимает всю ширину
+                toolsItem.style.marginTop = '4px';
+                toolsItem.style.paddingTop = '8px';
+                toolsItem.style.borderTop = '1px solid rgba(0, 0, 0, 0.1)';
+
+                const toolsLabel = document.createElement('span');
+                toolsLabel.className = 'token-info-label';
+                toolsLabel.textContent = '🔧 Инструменты:';
+                toolsItem.appendChild(toolsLabel);
+
+                const toolsList = document.createElement('span');
+                toolsList.style.display = 'inline-flex';
+                toolsList.style.flexWrap = 'wrap';
+                toolsList.style.gap = '4px';
+                toolsList.style.marginLeft = '6px';
+
+                usedTools.forEach(tool => {
+                    const toolBadge = document.createElement('span');
+                    toolBadge.style.display = 'inline-block';
+                    toolBadge.style.padding = '2px 6px';
+                    toolBadge.style.backgroundColor = '#E3F2FD';
+                    toolBadge.style.color = '#1565C0';
+                    toolBadge.style.borderRadius = '10px';
+                    toolBadge.style.fontSize = '11px';
+                    toolBadge.style.fontWeight = '500';
+                    toolBadge.textContent = tool;
+                    toolsList.appendChild(toolBadge);
+                });
+
+                toolsItem.appendChild(toolsList);
+                tokenInfo.appendChild(toolsItem);
+            }
+
             return tokenInfo;
         }
 
-        function addMessage(text, isUser, title = null, isMultiAgent = false, agents = null, tokenUsage = null) {
+        function addMessage(text, isUser, title = null, isMultiAgent = false, agents = null, tokenUsage = null, usedTools = null) {
             if (isUser) {
                 const messageDiv = document.createElement('div');
                 messageDiv.className = 'message user-message';
@@ -1486,7 +1523,7 @@
                 synthesisDiv.appendChild(synthesisContent);
 
                 if (tokenUsage) {
-                    const tokenInfo = createTokenInfo(tokenUsage);
+                    const tokenInfo = createTokenInfo(tokenUsage, usedTools);
                     if (tokenInfo) {
                         synthesisDiv.appendChild(tokenInfo);
                     }
@@ -1516,7 +1553,7 @@
                 messageDiv.appendChild(contentDiv);
 
                 if (tokenUsage) {
-                    const tokenInfo = createTokenInfo(tokenUsage);
+                    const tokenInfo = createTokenInfo(tokenUsage, usedTools);
                     if (tokenInfo) {
                         messageDiv.appendChild(tokenInfo);
                     }
@@ -1683,7 +1720,7 @@
 
                 const data = await response.json();
                 chatContainer.removeChild(loadingDiv);
-                addMessage(data.response, false, data.title, data.isMultiAgent, data.agents, data.tokenUsage);
+                addMessage(data.response, false, data.title, data.isMultiAgent, data.agents, data.tokenUsage, data.usedTools);
 
                 updateMessageCount();
 
