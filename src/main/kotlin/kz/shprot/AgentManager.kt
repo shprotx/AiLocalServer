@@ -253,7 +253,8 @@ class AgentManager(
         history: List<Message>,
         temperature: Double = 0.6,
         compressContext: Boolean = false,
-        compressSystemPrompt: Boolean = false
+        compressSystemPrompt: Boolean = false,
+        ragContext: String? = null
     ): MultiAgentResponse {
         // Проверяем явный запрос на создание специалистов
         val explicitRequest = detectExplicitAgentRequest(userMessage)
@@ -275,7 +276,7 @@ class AgentManager(
                     chatId, userMessage, compressContext, compressSystemPrompt
                 )
             } else {
-                chatHistory.buildMessagesWithHistory(chatId, userMessage)
+                chatHistory.buildMessagesWithHistory(chatId, userMessage, ragContext)
             }
             val result = baseClient.sendMessageWithHistoryAndUsage(
                 messages,

@@ -280,7 +280,7 @@ fun main() {
                 }
 
                 // Пытаемся обогатить контекстом из базы знаний
-                val (augmentedMessages, ragUsed) = ragManager.augmentPromptWithKnowledge(
+                val (augmentedMessages, ragUsed, ragContext) = ragManager.augmentPromptWithKnowledge(
                     userQuery = request.message,
                     originalMessages = baseMessages
                 )
@@ -350,13 +350,15 @@ fun main() {
                 println("=== MCP tool не требуется, используем multi-agent систему ===")
 
                 // Обрабатываем сообщение через multi-agent систему
+                // ВАЖНО: Передаём RAG контекст в agentManager
                 val multiAgentResponse = agentManager.processMessage(
                     chatId = request.chatId,
                     userMessage = request.message,
                     history = history,
                     temperature = request.temperature ?: 0.6,
                     compressContext = request.compressContext,
-                    compressSystemPrompt = request.compressSystemPrompt
+                    compressSystemPrompt = request.compressSystemPrompt,
+                    ragContext = ragContext
                 )
 
                 // Конвертируем Usage в TokenUsageInfo

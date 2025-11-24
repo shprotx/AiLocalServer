@@ -261,11 +261,36 @@ class ChatHistory(private val db: DatabaseManager) {
     /**
      * Построение списка сообщений для отправки в LLM (с system prompt)
      */
-    fun buildMessagesWithHistory(chatId: Int, userMessage: String): List<Message> {
+    fun buildMessagesWithHistory(chatId: Int, userMessage: String, ragContext: String? = null): List<Message> {
         val messages = mutableListOf<Message>()
 
-        // Добавляем system prompt
-        messages.add(Message(role = "system", text = getSystemPrompt()))
+        // Добавляем system prompt (с RAG контекстом если есть)
+        val systemPrompt = if (ragContext != null) {
+            """
+            ${getSystemPrompt()}
+
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            📚 КОНТЕКСТ ИЗ БАЗЫ ЗНАНИЙ
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+            $ragContext
+
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+            ВАЖНО: Вся информация для ответа на вопрос пользователя УЖЕ НАХОДИТСЯ ВЫШЕ в разделе "КОНТЕКСТ ИЗ БАЗЫ ЗНАНИЙ".
+
+            ИНСТРУКЦИЯ:
+            1. Внимательно прочитай контекст выше
+            2. Используй ТОЛЬКО эту информацию для формирования ответа
+            3. НЕ переспрашивай и НЕ проси предоставить текст - он уже есть в контексте
+            4. Отвечай конкретно на вопрос пользователя, используя информацию из контекста
+            5. Если в контексте нет нужной информации - так и скажи, но НЕ проси текст
+            """.trimIndent()
+        } else {
+            getSystemPrompt()
+        }
+
+        messages.add(Message(role = "system", text = systemPrompt))
 
         // Добавляем историю
         messages.addAll(getMessages(chatId))
