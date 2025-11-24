@@ -7,7 +7,32 @@
         "-jar",
         "weather-mcp/build/libs/weather-mcp-1.0.0.jar"
       ],
-      "description": "Погодный сервер для получения текущей температуры"
+      "description": "Погодный сервер для получения текущей температуры, прогноза и погоды по городам"
+    },
+    "telegram": {
+      "type": "stdio",
+      "command": "/opt/homebrew/bin/telegram-mcp",
+      "args": [],
+      "env": {
+        "TG_APP_ID": "39294290",
+        "TG_API_HASH": "1a3e5bdd1e5c41cf2bde137c9c9d613d"
+      },
+      "description": "Telegram MCP сервер для работы с чатами, каналами и сообщениями"
+    },
+    "fetch": {
+      "type": "stdio",
+      "command": "/Users/artur/.local/bin/mcp-server-fetch",
+      "args": [],
+      "description": "Fetch сервер для получения контента из интернета и конвертации в Markdown"
+    },
+    "filesystem": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "/Users/artur/StudioProjects/AiLocalServer/node_modules/@modelcontextprotocol/server-filesystem/dist/index.js",
+        "/Users/artur/StudioProjects/AiLocalServer"
+      ],
+      "description": "Filesystem сервер для работы с файлами (чтение, запись, поиск) в директории проекта"
     }
   }
 }
