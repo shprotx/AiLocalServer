@@ -9,6 +9,7 @@ import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import io.ktor.utils.io.*
 import kz.shprot.models.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -63,6 +64,13 @@ fun main() {
     val db = DatabaseManager("chats.db")
     val chatHistory = ChatHistory(db)
 
+    // Инициализация RAG системы (база знаний)
+    val ollamaClient = OllamaClient()
+    val documentProcessor = DocumentProcessor(chunkSize = 1000, overlap = 200)
+    val embeddingsManager = EmbeddingsManager(ollamaClient, db, documentProcessor)
+    val vectorSearchManager = VectorSearchManager(db, topK = 5, similarityThreshold = 0.5)
+    val ragManager = RAGManager(embeddingsManager, vectorSearchManager)
+
     val contextCompressor = ContextCompressor(llmClient)
     val agentManager = AgentManager(apiKey, modelUri, chatHistory)
 
@@ -74,6 +82,7 @@ fun main() {
     println("Модель: $modelType")
     println("JSON Schema: ${if (modelType == "yandexgpt") "включена" else "отключена (lite модель)"}")
     println("Multi-Agent система: включена")
+    println("RAG/База знаний: включена (Ollama + nomic-embed-text)")
     println("MCP серверы: см. mcp-servers.json")
     println("Сервер запускается на http://localhost:8080")
     println("Откройте браузер и перейдите по этому адресу")
@@ -258,20 +267,35 @@ fun main() {
                 println("Сжатие существует: ${compressionExists != null}")
                 println("Будет использовано: ${request.compressContext && compressionExists != null}")
 
-                // 🔧 MCP ПОДДЕРЖКА: Сначала пробуем обработать через MCP инструменты
-                // Это позволяет быстро отвечать на простые запросы с использованием инструментов
-                val mcpSystemPrompt = McpSystemPromptBuilder.buildSystemPrompt(mcpManager)
-                val messagesForMcp = if (request.compressContext) {
-                    // Заменяем system prompt на MCP-версию
-                    val compressed = chatHistory.buildMessagesWithCompression(
+                // 📚 RAG ПОДДЕРЖКА: Обогащаем запрос контекстом из базы знаний
+                println("=== Проверка базы знаний (RAG) ===")
+                var baseMessages = if (request.compressContext) {
+                    chatHistory.buildMessagesWithCompression(
                         request.chatId, request.message, request.compressContext, request.compressSystemPrompt
                     )
-                    listOf(Message("system", mcpSystemPrompt)) + compressed.drop(1)
                 } else {
-                    listOf(Message("system", mcpSystemPrompt)) +
+                    listOf(Message("system", chatHistory.getSystemPrompt())) +
                     history +
                     listOf(Message("user", request.message))
                 }
+
+                // Пытаемся обогатить контекстом из базы знаний
+                val (augmentedMessages, ragUsed) = ragManager.augmentPromptWithKnowledge(
+                    userQuery = request.message,
+                    originalMessages = baseMessages
+                )
+
+                if (ragUsed) {
+                    println("✅ Запрос обогащен контекстом из базы знаний")
+                    baseMessages = augmentedMessages
+                } else {
+                    println("ℹ️ База знаний не использовалась (нет релевантного контекста или Ollama недоступна)")
+                }
+
+                // 🔧 MCP ПОДДЕРЖКА: Сначала пробуем обработать через MCP инструменты
+                // Это позволяет быстро отвечать на простые запросы с использованием инструментов
+                val mcpSystemPrompt = McpSystemPromptBuilder.buildSystemPrompt(mcpManager)
+                val messagesForMcp = listOf(Message("system", mcpSystemPrompt)) + baseMessages.drop(1)
 
                 println("=== Проверка на MCP tool_calls ===")
                 val mcpCheckResponse = llmClient.sendMessageWithHistoryAndUsage(
@@ -527,6 +551,107 @@ fun main() {
                     call.respond(
                         HttpStatusCode.InternalServerError,
                         mapOf("error" to e.message)
+                    )
+                }
+            }
+
+            // ==================== RAG / Knowledge Base Endpoints ====================
+
+            // Загрузка файла в базу знаний
+            post("/api/knowledge/upload") {
+                try {
+                    val multipart = call.receiveMultipart()
+                    var filename = ""
+                    var fileBytes: ByteArray? = null
+
+                    var part = multipart.readPart()
+                    while (part != null) {
+                        when (part) {
+                            is io.ktor.http.content.PartData.FileItem -> {
+                                filename = part.originalFileName ?: "unnamed"
+                                fileBytes = part.provider().toByteArray()
+                            }
+                            else -> {}
+                        }
+                        part.dispose()
+                        part = multipart.readPart()
+                    }
+
+                    if (fileBytes == null) {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("error" to "No file provided"))
+                        return@post
+                    }
+
+                    println("📤 Загрузка файла: $filename")
+
+                    // Обработка и сохранение документа
+                    val documentId = embeddingsManager.processAndStoreDocument(
+                        fileContent = fileBytes!!.inputStream(),
+                        filename = filename
+                    )
+
+                    call.respond(HttpStatusCode.Created, UploadFileResponse(
+                        success = true,
+                        documentId = documentId,
+                        filename = filename,
+                        message = "Файл успешно загружен и обработан"
+                    ))
+                } catch (e: Exception) {
+                    println("❌ Ошибка при загрузке файла: ${e.message}")
+                    e.printStackTrace()
+                    call.respond(
+                        HttpStatusCode.InternalServerError,
+                        ErrorResponse(error = e.message ?: "Unknown error")
+                    )
+                }
+            }
+
+            // Получение списка документов в базе знаний
+            get("/api/knowledge/documents") {
+                try {
+                    val stats = embeddingsManager.getKnowledgeBaseStats()
+                    call.respond(KnowledgeBaseStatsResponse(
+                        totalDocuments = stats.totalDocuments,
+                        totalChunks = stats.totalChunks,
+                        documents = stats.documents.map { doc ->
+                            DocumentInfo(
+                                id = doc.id,
+                                filename = doc.filename,
+                                fileType = doc.fileType,
+                                uploadDate = doc.uploadDate,
+                                totalChunks = doc.totalChunks
+                            )
+                        }
+                    ))
+                } catch (e: Exception) {
+                    println("❌ Ошибка при получении списка документов: ${e.message}")
+                    call.respond(
+                        HttpStatusCode.InternalServerError,
+                        ErrorResponse(error = e.message ?: "Unknown error")
+                    )
+                }
+            }
+
+            // Удаление документа из базы знаний
+            delete("/api/knowledge/documents/{id}") {
+                try {
+                    val documentId = call.parameters["id"]?.toIntOrNull()
+                    if (documentId == null) {
+                        call.respond(HttpStatusCode.BadRequest, ErrorResponse(error = "Invalid document ID"))
+                        return@delete
+                    }
+
+                    val deleted = embeddingsManager.deleteDocument(documentId)
+                    if (deleted) {
+                        call.respond(DeleteDocumentResponse(success = true, message = "Документ удален"))
+                    } else {
+                        call.respond(HttpStatusCode.NotFound, ErrorResponse(error = "Document not found"))
+                    }
+                } catch (e: Exception) {
+                    println("❌ Ошибка при удалении документа: ${e.message}")
+                    call.respond(
+                        HttpStatusCode.InternalServerError,
+                        ErrorResponse(error = e.message ?: "Unknown error")
                     )
                 }
             }

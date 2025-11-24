@@ -48,31 +48,41 @@
             margin-bottom: 12px;
         }
 
-        .new-chat-button {
-            width: 100%;
-            padding: 10px 16px;
+        .sidebar-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .new-chat-button, .knowledge-base-button {
+            flex: 1;
+            padding: 10px 12px;
             background: rgba(255,255,255,0.2);
             color: #FFFFFF;
             border: 1px solid rgba(255,255,255,0.4);
             border-radius: 4px;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 500;
             cursor: pointer;
             transition: background 0.2s;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
+            gap: 6px;
         }
 
-        .new-chat-button:hover {
+        .new-chat-button:hover, .knowledge-base-button:hover {
             background: rgba(255,255,255,0.3);
         }
 
         .new-chat-button::before {
             content: '+';
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 600;
+        }
+
+        .knowledge-base-button::before {
+            content: '📚';
+            font-size: 16px;
         }
 
         .chats-list {
@@ -934,12 +944,18 @@
         <div class="sidebar">
             <div class="sidebar-header">
                 <h2>Чаты</h2>
-                <button class="new-chat-button" id="newChatButton">Новый чат</button>
+                <div class="sidebar-buttons">
+                    <button class="new-chat-button" id="newChatButton">Новый чат</button>
+                    <button class="knowledge-base-button" id="knowledgeBaseButton">База знаний</button>
+                </div>
             </div>
             <div class="chats-list" id="chatsList">
                 <!-- Chat items will be inserted here -->
             </div>
         </div>
+
+        <!-- Knowledge Base Modal -->
+        <input type="file" id="fileInput" accept=".txt,.pdf" style="display: none;" />
 
         <!-- Main content -->
         <div class="main-content">
@@ -1754,8 +1770,60 @@
             }
         }
 
+        // ==================== Knowledge Base Functions ====================
+
+        async function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            fileInput.click();
+        }
+
+        async function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Проверка типа файла
+            const validTypes = ['.txt', '.pdf'];
+            const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+            if (!validTypes.includes(fileExt)) {
+                alert('Поддерживаются только файлы .txt и .pdf');
+                return;
+            }
+
+            // Проверка размера (макс 10MB)
+            if (file.size > 10 * 1024 * 1024) {
+                alert('Файл слишком большой. Максимальный размер: 10MB');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                console.log('Загрузка файла:', file.name);
+                const response = await fetch('/api/knowledge/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    alert(`✅ Файл "${file.name}" успешно загружен в базу знаний!\n\nТеперь я могу использовать эту информацию для ответов на ваши вопросы.`);
+                } else {
+                    alert(`❌ Ошибка загрузки: ${result.error}`);
+                }
+            } catch (error) {
+                console.error('Ошибка при загрузке файла:', error);
+                alert('❌ Ошибка при загрузке файла: ' + error.message);
+            } finally {
+                // Сбрасываем input чтобы можно было загрузить тот же файл снова
+                event.target.value = '';
+            }
+        }
+
         // Event listeners
         newChatButton.addEventListener('click', createNewChat);
+        knowledgeBaseButton.addEventListener('click', uploadFile);
+        fileInput.addEventListener('change', handleFileSelect);
         sendButton.addEventListener('click', sendMessage);
         messageInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {

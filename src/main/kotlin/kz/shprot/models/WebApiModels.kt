@@ -165,3 +165,40 @@ data class ToolCallInfo(
     val parameters: String,
     val result: String
 )
+
+// ==================== RAG / Knowledge Base Models ====================
+
+@Serializable
+data class UploadFileResponse(
+    val success: Boolean,
+    val documentId: Int,
+    val filename: String,
+    val message: String
+)
+
+@Serializable
+data class DocumentInfo(
+    val id: Int,
+    val filename: String,
+    val fileType: String,
+    val uploadDate: Long,
+    val totalChunks: Int
+)
+
+@Serializable
+data class KnowledgeBaseStatsResponse(
+    val totalDocuments: Int,
+    val totalChunks: Int,
+    val documents: List<DocumentInfo>
+)
+
+@Serializable
+data class DeleteDocumentResponse(
+    val success: Boolean,
+    val message: String
+)
+
+@Serializable
+data class ErrorResponse(
+    val error: String
+)
