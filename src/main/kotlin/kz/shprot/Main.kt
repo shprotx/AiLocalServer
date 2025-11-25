@@ -593,10 +593,7 @@ fun main() {
                     ragContext = null
                 )
 
-                // ВАЖНО: Сохраняем в историю только сообщение пользователя
-                // Не сохраняем ответы, т.к. это сравнение, а не реальный чат
-                println("ℹ️ Сравнение завершено. Ответы НЕ сохранены в историю чата (режим сравнения)")
-
+                // Сохраняем в историю чата
                 val compareResponse = CompareResponse(
                     withRAG = responseWithRAG,
                     withoutRAG = responseWithoutRAG,
@@ -604,6 +601,20 @@ fun main() {
                     ragChunksCount = ragEnrichmentInfo.chunksCount,
                     similarityScores = ragEnrichmentInfo.similarityScores
                 )
+
+                // Сериализуем сравнение в JSON и сохраняем как специальное сообщение
+                val jsonParser = kotlinx.serialization.json.Json {
+                    prettyPrint = false
+                    ignoreUnknownKeys = true
+                }
+                val comparisonJson = jsonParser.encodeToString(CompareResponse.serializer(), compareResponse)
+
+                // Сохраняем сообщение пользователя и результат сравнения
+                chatHistory.addMessage(request.chatId, "user", request.message)
+                // Добавляем префикс __COMPARISON__ чтобы фронтенд знал что это сравнение
+                chatHistory.addMessage(request.chatId, "assistant", "__COMPARISON__$comparisonJson", multiAgentResponseWithRAG.totalUsage)
+
+                println("✅ Сравнение сохранено в историю чата")
 
                 call.respond(compareResponse)
             }

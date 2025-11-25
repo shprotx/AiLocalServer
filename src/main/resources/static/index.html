@@ -1706,7 +1706,23 @@
                         if (msg.role === 'user') {
                             addMessage(msg.content, true);
                         } else if (msg.role === 'assistant') {
-                            addMessage(msg.content, false);
+                            // Check if this is a comparison result
+                            if (msg.content.startsWith('__COMPARISON__')) {
+                                try {
+                                    // Extract JSON (remove prefix)
+                                    const jsonStr = msg.content.substring('__COMPARISON__'.length);
+                                    const comparisonData = JSON.parse(jsonStr);
+                                    // Display comparison in side-by-side format
+                                    displayComparisonResult(comparisonData);
+                                } catch (error) {
+                                    console.error('Failed to parse comparison data:', error);
+                                    // Fallback to regular message if parsing fails
+                                    addMessage(msg.content, false);
+                                }
+                            } else {
+                                // Regular assistant message
+                                addMessage(msg.content, false);
+                            }
                         }
                     });
                     sessionStats.messageCount = data.messages.length;
@@ -2314,10 +2330,33 @@
                 const data = await response.json();
 
                 // Отображаем сообщение пользователя
-                displayMessage(message, 'user');
+                addMessage(message, true);
 
                 // Отображаем сравнение
                 displayComparisonResult(data);
+
+                // Обновляем счетчик сообщений
+                updateMessageCount();
+
+                // Обновляем статистику токенов (суммируем оба запроса)
+                if (data.withRAG.tokenUsage && data.withoutRAG.tokenUsage) {
+                    const combinedUsage = {
+                        inputTokens: data.withRAG.tokenUsage.inputTokens + data.withoutRAG.tokenUsage.inputTokens,
+                        outputTokens: data.withRAG.tokenUsage.outputTokens + data.withoutRAG.tokenUsage.outputTokens,
+                        totalTokens: data.withRAG.tokenUsage.totalTokens + data.withoutRAG.tokenUsage.totalTokens,
+                        estimatedCostRub: data.withRAG.tokenUsage.estimatedCostRub + data.withoutRAG.tokenUsage.estimatedCostRub,
+                        modelName: data.withRAG.tokenUsage.modelName
+                    };
+                    updateTokenStats(combinedUsage);
+                }
+
+                // Обновляем индикатор контекстного окна (используем данные с RAG)
+                if (data.withRAG.contextWindowUsage) {
+                    updateContextWindowIndicator(data.withRAG.contextWindowUsage);
+                }
+
+                // Перезагружаем список чатов
+                await loadChats();
 
                 // Очищаем input
                 messageInput.value = '';
@@ -2328,7 +2367,7 @@
             } catch (error) {
                 loadingDiv.remove();
                 console.error('Ошибка при сравнении:', error);
-                displayMessage(`Ошибка при сравнении: ${error.message}`, 'assistant');
+                addMessage(`Ошибка при сравнении: ${error.message}`, false);
                 showToast('Ошибка при сравнении', 'error');
             } finally {
                 sendButton.disabled = false;
