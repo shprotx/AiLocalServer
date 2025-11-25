@@ -384,6 +384,37 @@
             box-shadow: none;
         }
 
+        #compareButton {
+            padding: 12px 20px;
+            background: #FF9800;
+            color: #FFFFFF;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: background 0.2s, box-shadow 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.14);
+            white-space: nowrap;
+        }
+
+        #compareButton:hover {
+            background: #F57C00;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        #compareButton:active {
+            background: #E65100;
+        }
+
+        #compareButton:disabled {
+            background: #BDBDBD;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
         .loading {
             align-self: flex-start;
             background: linear-gradient(135deg, #FFFFFF 0%, #F5F9FF 100%);
@@ -936,6 +967,356 @@
         .toast.hiding {
             animation: slideOut 0.3s ease-out forwards;
         }
+
+        /* ==================== RAG Compare Styles ==================== */
+        .compare-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            padding: 12px;
+            background: #F5F5F5;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            max-width: 100%;
+        }
+
+        .compare-column {
+            background: #FFFFFF;
+            border-radius: 8px;
+            padding: 16px;
+            border: 2px solid #E0E0E0;
+            min-height: 200px;
+        }
+
+        .compare-column.with-rag {
+            border-color: #4CAF50;
+        }
+
+        .compare-column.without-rag {
+            border-color: #FF9800;
+        }
+
+        .compare-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #E0E0E0;
+        }
+
+        .compare-column.with-rag .compare-header {
+            color: #4CAF50;
+            border-bottom-color: #4CAF50;
+        }
+
+        .compare-column.without-rag .compare-header {
+            color: #FF9800;
+            border-bottom-color: #FF9800;
+        }
+
+        .compare-content {
+            line-height: 1.6;
+            color: rgba(0,0,0,0.87);
+        }
+
+        .compare-rag-context {
+            margin-top: 12px;
+            padding: 12px;
+            background: #E8F5E9;
+            border-left: 4px solid #4CAF50;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .compare-rag-context-header {
+            font-weight: 600;
+            color: #2E7D32;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .compare-rag-context-content {
+            color: rgba(0,0,0,0.7);
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 8px;
+            background: #FFFFFF;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+        }
+
+        .compare-rag-context-content.collapsed {
+            display: none;
+        }
+
+        .compare-token-info {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #E0E0E0;
+            font-size: 11px;
+            color: rgba(0,0,0,0.6);
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        /* ==================== RAG Badge Styles ==================== */
+        .rag-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            background: linear-gradient(135deg, #4CAF50, #66BB6A);
+            color: #FFFFFF;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-left: 8px;
+            box-shadow: 0 2px 4px rgba(76, 175, 80, 0.3);
+        }
+
+        /* ==================== Knowledge Base Modal Styles ==================== */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 9999;
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-container {
+            background: #FFFFFF;
+            border-radius: 8px;
+            max-width: 800px;
+            width: 90%;
+            max-height: 90vh;
+            overflow: hidden;
+            box-shadow: 0 24px 48px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            padding: 20px 24px;
+            background: #1976D2;
+            color: #FFFFFF;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #E0E0E0;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .modal-close {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: #FFFFFF;
+            font-size: 24px;
+            cursor: pointer;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .modal-close:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .modal-body {
+            padding: 24px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .kb-upload-section {
+            margin-bottom: 24px;
+            padding: 20px;
+            background: #F5F9FF;
+            border-radius: 8px;
+            border: 2px dashed #1976D2;
+        }
+
+        .kb-upload-area {
+            text-align: center;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .kb-upload-area:hover {
+            background: #E3F2FD;
+        }
+
+        .kb-upload-area.drag-over {
+            background: #BBDEFB;
+            border-color: #0D47A1;
+        }
+
+        .kb-upload-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .kb-upload-text {
+            font-size: 14px;
+            color: rgba(0,0,0,0.7);
+            margin-bottom: 8px;
+        }
+
+        .kb-upload-hint {
+            font-size: 12px;
+            color: rgba(0,0,0,0.54);
+        }
+
+        .kb-stats {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            padding: 16px;
+            background: #F5F5F5;
+            border-radius: 8px;
+        }
+
+        .kb-stat-item {
+            flex: 1;
+            text-align: center;
+        }
+
+        .kb-stat-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1976D2;
+        }
+
+        .kb-stat-label {
+            font-size: 12px;
+            color: rgba(0,0,0,0.6);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 4px;
+        }
+
+        .kb-documents-list {
+            margin-top: 16px;
+        }
+
+        .kb-document-item {
+            padding: 12px 16px;
+            background: #FFFFFF;
+            border: 1px solid #E0E0E0;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: box-shadow 0.2s;
+        }
+
+        .kb-document-item:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .kb-document-info {
+            flex: 1;
+        }
+
+        .kb-document-name {
+            font-weight: 500;
+            color: rgba(0,0,0,0.87);
+            margin-bottom: 4px;
+        }
+
+        .kb-document-meta {
+            font-size: 11px;
+            color: rgba(0,0,0,0.54);
+            display: flex;
+            gap: 12px;
+        }
+
+        .kb-document-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .kb-action-button {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .kb-action-button.delete {
+            background: #FFEBEE;
+            color: #D32F2F;
+        }
+
+        .kb-action-button.delete:hover {
+            background: #F44336;
+            color: #FFFFFF;
+        }
+
+        .kb-empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: rgba(0,0,0,0.54);
+        }
+
+        .kb-empty-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
     </style>
 </head>
 <body>
@@ -1035,6 +1416,10 @@
                         <input type="checkbox" id="compressSystemPromptToggle" disabled />
                         <label for="compressSystemPromptToggle" class="disabled">Сжимать системный промпт</label>
                     </div>
+                    <div class="compression-control-item">
+                        <input type="checkbox" id="useRAGToggle" checked />
+                        <label for="useRAGToggle">📚 Использовать RAG (база знаний)</label>
+                    </div>
                 </div>
 
                 <div class="temperature-label">
@@ -1058,7 +1443,49 @@
                     placeholder="Введите сообщение..."
                     autocomplete="off"
                 />
+                <button id="compareButton">⚖️ Сравнить</button>
                 <button id="sendButton">Отправить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Knowledge Base Modal -->
+    <div class="modal-overlay" id="knowledgeBaseModal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <span>📚</span>
+                    <span>Управление базой знаний</span>
+                </div>
+                <button class="modal-close" id="closeModalButton">×</button>
+            </div>
+            <div class="modal-body">
+                <!-- Upload Section -->
+                <div class="kb-upload-section">
+                    <div class="kb-upload-area" id="kbUploadArea">
+                        <div class="kb-upload-icon">📤</div>
+                        <div class="kb-upload-text">Перетащите файлы сюда или нажмите для выбора</div>
+                        <div class="kb-upload-hint">Поддерживаются: PDF, TXT</div>
+                        <input type="file" id="kbFileInput" accept=".pdf,.txt" style="display: none;" />
+                    </div>
+                </div>
+
+                <!-- Stats Section -->
+                <div class="kb-stats">
+                    <div class="kb-stat-item">
+                        <div class="kb-stat-value" id="kbTotalDocuments">0</div>
+                        <div class="kb-stat-label">Документов</div>
+                    </div>
+                    <div class="kb-stat-item">
+                        <div class="kb-stat-value" id="kbTotalChunks">0</div>
+                        <div class="kb-stat-label">Чанков</div>
+                    </div>
+                </div>
+
+                <!-- Documents List -->
+                <div class="kb-documents-list" id="kbDocumentsList">
+                    <!-- Documents will be dynamically loaded here -->
+                </div>
             </div>
         </div>
     </div>
@@ -1077,8 +1504,20 @@
         const compressContextToggle = document.getElementById('compressContextToggle');
         const compressSystemPromptToggle = document.getElementById('compressSystemPromptToggle');
         const compressSystemPromptLabel = document.querySelector('label[for="compressSystemPromptToggle"]');
+        const useRAGToggle = document.getElementById('useRAGToggle');
+        const compareButton = document.getElementById('compareButton');
         const newChatButton = document.getElementById('newChatButton');
+        const knowledgeBaseButton = document.getElementById('knowledgeBaseButton');
         const chatsList = document.getElementById('chatsList');
+
+        // Knowledge Base Modal Elements
+        const knowledgeBaseModal = document.getElementById('knowledgeBaseModal');
+        const closeModalButton = document.getElementById('closeModalButton');
+        const kbFileInput = document.getElementById('kbFileInput');
+        const kbUploadArea = document.getElementById('kbUploadArea');
+        const kbDocumentsList = document.getElementById('kbDocumentsList');
+        const kbTotalDocuments = document.getElementById('kbTotalDocuments');
+        const kbTotalChunks = document.getElementById('kbTotalChunks');
 
         // State
         let currentChatId = null;
@@ -1497,7 +1936,7 @@
             return toolsBlock;
         }
 
-        function addMessage(text, isUser, title = null, isMultiAgent = false, agents = null, tokenUsage = null, usedTools = null) {
+        function addMessage(text, isUser, title = null, isMultiAgent = false, agents = null, tokenUsage = null, usedTools = null, ragUsed = false, ragContext = null) {
             if (isUser) {
                 const messageDiv = document.createElement('div');
                 messageDiv.className = 'message user-message';
@@ -1565,6 +2004,16 @@
                 if (title) {
                     const titleElement = document.createElement('h3');
                     titleElement.textContent = title;
+
+                    // Добавляем RAG бейдж если использовался RAG
+                    if (ragUsed) {
+                        const ragBadge = document.createElement('span');
+                        ragBadge.className = 'rag-badge';
+                        ragBadge.textContent = '📚 RAG';
+                        ragBadge.title = ragContext ? `Использован контекст из базы знаний (${ragContext.substring(0, 100)}...)` : 'Использован контекст из базы знаний';
+                        titleElement.appendChild(ragBadge);
+                    }
+
                     titleElement.style.marginTop = '0';
                     titleElement.style.marginBottom = '8px';
                     titleElement.style.fontSize = '16px';
@@ -1738,7 +2187,8 @@
                     chatId: currentChatId,
                     temperature: temperature,
                     compressContext: compressContextToggle.checked,
-                    compressSystemPrompt: compressSystemPromptToggle.checked
+                    compressSystemPrompt: compressSystemPromptToggle.checked,
+                    useRAG: useRAGToggle.checked
                 };
 
                 const response = await fetch('/api/chat', {
@@ -1751,7 +2201,7 @@
 
                 const data = await response.json();
                 chatContainer.removeChild(loadingDiv);
-                addMessage(data.response, false, data.title, data.isMultiAgent, data.agents, data.tokenUsage, data.usedTools);
+                addMessage(data.response, false, data.title, data.isMultiAgent, data.agents, data.tokenUsage, data.usedTools, data.ragUsed, data.ragContext);
 
                 updateMessageCount();
 
@@ -1820,14 +2270,344 @@
             }
         }
 
+        // ==================== RAG Comparison Functions ====================
+
+        async function sendCompareRequest() {
+            const message = messageInput.value.trim();
+
+            if (!message) {
+                showToast('Введите сообщение для сравнения', 'warning');
+                return;
+            }
+
+            // Отключаем кнопки
+            sendButton.disabled = true;
+            compareButton.disabled = true;
+            messageInput.disabled = true;
+
+            // Показываем индикатор загрузки
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'loading';
+            loadingDiv.innerHTML = '<div class="loading-spinner"></div><div class="loading-text">Сравнение с RAG и без RAG...</div>';
+            chatContainer.appendChild(loadingDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            try {
+                const response = await fetch('/api/chat/compare', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: message,
+                        chatId: currentChatId,
+                        temperature: parseFloat(temperatureInput.value),
+                        compressContext: compressContextToggle.checked,
+                        compressSystemPrompt: compressSystemPromptToggle.checked
+                    })
+                });
+
+                loadingDiv.remove();
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                // Отображаем сообщение пользователя
+                displayMessage(message, 'user');
+
+                // Отображаем сравнение
+                displayComparisonResult(data);
+
+                // Очищаем input
+                messageInput.value = '';
+                messageInput.focus();
+
+                showToast('Сравнение завершено!', 'success');
+
+            } catch (error) {
+                loadingDiv.remove();
+                console.error('Ошибка при сравнении:', error);
+                displayMessage(`Ошибка при сравнении: ${error.message}`, 'assistant');
+                showToast('Ошибка при сравнении', 'error');
+            } finally {
+                sendButton.disabled = false;
+                compareButton.disabled = false;
+                messageInput.disabled = false;
+            }
+        }
+
+        function displayComparisonResult(data) {
+            const compareContainer = document.createElement('div');
+            compareContainer.className = 'compare-container';
+
+            // Left column: WITH RAG
+            const withRAGColumn = document.createElement('div');
+            withRAGColumn.className = 'compare-column with-rag';
+
+            const withRAGHeader = document.createElement('div');
+            withRAGHeader.className = 'compare-header';
+            withRAGHeader.innerHTML = '📚 С RAG (База знаний)';
+            withRAGColumn.appendChild(withRAGHeader);
+
+            const withRAGContent = document.createElement('div');
+            withRAGContent.className = 'compare-content';
+            withRAGContent.innerHTML = marked.parse(data.withRAG.response);
+            withRAGContent.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+            withRAGColumn.appendChild(withRAGContent);
+
+            // RAG Context section
+            if (data.ragContext) {
+                const ragContextSection = document.createElement('div');
+                ragContextSection.className = 'compare-rag-context';
+
+                const contextHeader = document.createElement('div');
+                contextHeader.className = 'compare-rag-context-header';
+                contextHeader.innerHTML = `📊 Использованный контекст (${data.ragChunksCount} чанков) <span style="font-size: 10px;">▼</span>`;
+                contextHeader.onclick = () => {
+                    const content = ragContextSection.querySelector('.compare-rag-context-content');
+                    content.classList.toggle('collapsed');
+                    contextHeader.innerHTML = content.classList.contains('collapsed')
+                        ? `📊 Использованный контекст (${data.ragChunksCount} чанков) <span style="font-size: 10px;">▶</span>`
+                        : `📊 Использованный контекст (${data.ragChunksCount} чанков) <span style="font-size: 10px;">▼</span>`;
+                };
+                ragContextSection.appendChild(contextHeader);
+
+                const contextContent = document.createElement('div');
+                contextContent.className = 'compare-rag-context-content';
+                contextContent.textContent = data.ragContext;
+                ragContextSection.appendChild(contextContent);
+
+                withRAGColumn.appendChild(ragContextSection);
+            }
+
+            // Token info
+            if (data.withRAG.tokenUsage) {
+                const tokenInfo = document.createElement('div');
+                tokenInfo.className = 'compare-token-info';
+                tokenInfo.innerHTML = `
+                    <span><strong>Токены:</strong> ${data.withRAG.tokenUsage.totalTokens}</span>
+                    <span><strong>Стоимость:</strong> ${data.withRAG.tokenUsage.estimatedCostRub.toFixed(4)} ₽</span>
+                `;
+                withRAGColumn.appendChild(tokenInfo);
+            }
+
+            // Right column: WITHOUT RAG
+            const withoutRAGColumn = document.createElement('div');
+            withoutRAGColumn.className = 'compare-column without-rag';
+
+            const withoutRAGHeader = document.createElement('div');
+            withoutRAGHeader.className = 'compare-header';
+            withoutRAGHeader.innerHTML = '❌ Без RAG';
+            withoutRAGColumn.appendChild(withoutRAGHeader);
+
+            const withoutRAGContent = document.createElement('div');
+            withoutRAGContent.className = 'compare-content';
+            withoutRAGContent.innerHTML = marked.parse(data.withoutRAG.response);
+            withoutRAGContent.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+            withoutRAGColumn.appendChild(withoutRAGContent);
+
+            // Token info
+            if (data.withoutRAG.tokenUsage) {
+                const tokenInfo = document.createElement('div');
+                tokenInfo.className = 'compare-token-info';
+                tokenInfo.innerHTML = `
+                    <span><strong>Токены:</strong> ${data.withoutRAG.tokenUsage.totalTokens}</span>
+                    <span><strong>Стоимость:</strong> ${data.withoutRAG.tokenUsage.estimatedCostRub.toFixed(4)} ₽</span>
+                `;
+                withoutRAGColumn.appendChild(tokenInfo);
+            }
+
+            compareContainer.appendChild(withRAGColumn);
+            compareContainer.appendChild(withoutRAGColumn);
+
+            chatContainer.appendChild(compareContainer);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // ==================== Knowledge Base Modal Functions ====================
+
+        function openKnowledgeBaseModal() {
+            knowledgeBaseModal.classList.add('active');
+            loadKnowledgeBaseStats();
+            loadKnowledgeBaseDocuments();
+        }
+
+        function closeKnowledgeBaseModal() {
+            knowledgeBaseModal.classList.remove('active');
+        }
+
+        async function loadKnowledgeBaseStats() {
+            try {
+                const response = await fetch('/api/knowledge/documents');
+                const data = await response.json();
+
+                kbTotalDocuments.textContent = data.totalDocuments;
+                kbTotalChunks.textContent = data.totalChunks;
+            } catch (error) {
+                console.error('Ошибка загрузки статистики:', error);
+            }
+        }
+
+        async function loadKnowledgeBaseDocuments() {
+            try {
+                const response = await fetch('/api/knowledge/documents');
+                const data = await response.json();
+
+                if (data.documents.length === 0) {
+                    kbDocumentsList.innerHTML = `
+                        <div class="kb-empty-state">
+                            <div class="kb-empty-icon">📭</div>
+                            <div>База знаний пуста. Загрузите первый документ!</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                kbDocumentsList.innerHTML = '';
+                data.documents.forEach(doc => {
+                    const docItem = document.createElement('div');
+                    docItem.className = 'kb-document-item';
+
+                    const uploadDate = new Date(doc.uploadDate);
+                    const formattedDate = uploadDate.toLocaleString('ru-RU');
+
+                    docItem.innerHTML = `
+                        <div class="kb-document-info">
+                            <div class="kb-document-name">${doc.filename}</div>
+                            <div class="kb-document-meta">
+                                <span>Тип: ${doc.fileType}</span>
+                                <span>Чанков: ${doc.totalChunks}</span>
+                                <span>Загружен: ${formattedDate}</span>
+                            </div>
+                        </div>
+                        <div class="kb-document-actions">
+                            <button class="kb-action-button delete" onclick="deleteDocument(${doc.id})">
+                                🗑️ Удалить
+                            </button>
+                        </div>
+                    `;
+
+                    kbDocumentsList.appendChild(docItem);
+                });
+            } catch (error) {
+                console.error('Ошибка загрузки документов:', error);
+                kbDocumentsList.innerHTML = '<div class="kb-empty-state">Ошибка загрузки документов</div>';
+            }
+        }
+
+        async function uploadDocumentToKB(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                showToast(`Загрузка ${file.name}...`, 'info');
+
+                const response = await fetch('/api/knowledge/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                showToast(`✅ ${file.name} успешно загружен!`, 'success');
+
+                // Обновляем список
+                loadKnowledgeBaseStats();
+                loadKnowledgeBaseDocuments();
+            } catch (error) {
+                console.error('Ошибка загрузки документа:', error);
+                showToast(`❌ Ошибка загрузки ${file.name}`, 'error');
+            }
+        }
+
+        async function deleteDocument(documentId) {
+            if (!confirm('Вы уверены что хотите удалить этот документ?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/knowledge/documents/${documentId}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                showToast('Документ удален', 'success');
+                loadKnowledgeBaseStats();
+                loadKnowledgeBaseDocuments();
+            } catch (error) {
+                console.error('Ошибка удаления документа:', error);
+                showToast('Ошибка удаления документа', 'error');
+            }
+        }
+
+        // Drag & Drop для загрузки файлов
+        kbUploadArea.addEventListener('click', () => {
+            kbFileInput.click();
+        });
+
+        kbFileInput.addEventListener('change', (e) => {
+            const files = e.target.files;
+            if (files.length > 0) {
+                Array.from(files).forEach(file => {
+                    uploadDocumentToKB(file);
+                });
+            }
+            kbFileInput.value = ''; // Reset
+        });
+
+        kbUploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            kbUploadArea.classList.add('drag-over');
+        });
+
+        kbUploadArea.addEventListener('dragleave', () => {
+            kbUploadArea.classList.remove('drag-over');
+        });
+
+        kbUploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            kbUploadArea.classList.remove('drag-over');
+
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                Array.from(files).forEach(file => {
+                    if (file.name.endsWith('.pdf') || file.name.endsWith('.txt')) {
+                        uploadDocumentToKB(file);
+                    } else {
+                        showToast(`❌ ${file.name}: неподдерживаемый формат`, 'error');
+                    }
+                });
+            }
+        });
+
         // Event listeners
         newChatButton.addEventListener('click', createNewChat);
-        knowledgeBaseButton.addEventListener('click', uploadFile);
+        knowledgeBaseButton.addEventListener('click', openKnowledgeBaseModal);
+        closeModalButton.addEventListener('click', closeKnowledgeBaseModal);
+        compareButton.addEventListener('click', sendCompareRequest);
         fileInput.addEventListener('change', handleFileSelect);
         sendButton.addEventListener('click', sendMessage);
         messageInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 sendMessage();
+            }
+        });
+
+        // Close modal on overlay click
+        knowledgeBaseModal.addEventListener('click', (e) => {
+            if (e.target === knowledgeBaseModal) {
+                closeKnowledgeBaseModal();
             }
         });
 

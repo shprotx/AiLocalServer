@@ -269,6 +269,8 @@ fun main() {
 
                 // 📚 RAG ПОДДЕРЖКА: Обогащаем запрос контекстом из базы знаний
                 println("=== Проверка базы знаний (RAG) ===")
+                println("Флаг useRAG: ${request.useRAG}")
+
                 var baseMessages = if (request.compressContext) {
                     chatHistory.buildMessagesWithCompression(
                         request.chatId, request.message, request.compressContext, request.compressSystemPrompt
@@ -279,17 +281,27 @@ fun main() {
                     listOf(Message("user", request.message))
                 }
 
-                // Пытаемся обогатить контекстом из базы знаний
-                val (augmentedMessages, ragUsed, ragContext) = ragManager.augmentPromptWithKnowledge(
-                    userQuery = request.message,
-                    originalMessages = baseMessages
-                )
+                // Пытаемся обогатить контекстом из базы знаний (только если useRAG включен)
+                var ragUsed = false
+                var ragContext: String? = null
 
-                if (ragUsed) {
-                    println("✅ Запрос обогащен контекстом из базы знаний")
-                    baseMessages = augmentedMessages
+                if (request.useRAG) {
+                    val (augmentedMessages, wasRagUsed, foundContext) = ragManager.augmentPromptWithKnowledge(
+                        userQuery = request.message,
+                        originalMessages = baseMessages
+                    )
+
+                    ragUsed = wasRagUsed
+                    ragContext = foundContext
+
+                    if (ragUsed) {
+                        println("✅ Запрос обогащен контекстом из базы знаний")
+                        baseMessages = augmentedMessages
+                    } else {
+                        println("ℹ️ База знаний не использовалась (нет релевантного контекста или Ollama недоступна)")
+                    }
                 } else {
-                    println("ℹ️ База знаний не использовалась (нет релевантного контекста или Ollama недоступна)")
+                    println("ℹ️ RAG отключен пользователем (useRAG=false)")
                 }
 
                 // 🔧 MCP ПОДДЕРЖКА: Сначала пробуем обработать через MCP инструменты
@@ -340,7 +352,9 @@ fun main() {
                         agents = null,
                         tokenUsage = tokenInfo,
                         contextWindowUsage = contextWindowUsage,
-                        usedTools = toolCallResult.usedTools.takeIf { it.isNotEmpty() } // Передаем использованные инструменты
+                        usedTools = toolCallResult.usedTools.takeIf { it.isNotEmpty() }, // Передаем использованные инструменты
+                        ragUsed = ragUsed,
+                        ragContext = ragContext
                     )
 
                     call.respond(mcpResponse)
@@ -404,7 +418,9 @@ fun main() {
                             )
                         },
                         tokenUsage = tokenInfo,
-                        contextWindowUsage = contextWindowUsage
+                        contextWindowUsage = contextWindowUsage,
+                        ragUsed = ragUsed,
+                        ragContext = ragContext
                     )
                 } else {
                     ChatResponse(
@@ -413,11 +429,183 @@ fun main() {
                         isMultiAgent = false,
                         agents = null,
                         tokenUsage = tokenInfo,
-                        contextWindowUsage = contextWindowUsage
+                        contextWindowUsage = contextWindowUsage,
+                        ragUsed = ragUsed,
+                        ragContext = ragContext
                     )
                 }
 
                 call.respond(response)
+            }
+
+            // Endpoint для сравнения ответов с RAG и без RAG
+            post("/api/chat/compare") {
+                val request = call.receive<CompareRequest>()
+                println("=== Запрос на сравнение (с/без RAG) ===")
+                println("Message: ${request.message}")
+                println("ChatId: ${request.chatId}")
+
+                // Загружаем чат в память (если еще не загружен)
+                chatHistory.loadChat(request.chatId)
+
+                // Получаем историю сообщений для контекста
+                val history = chatHistory.getMessages(request.chatId)
+
+                // Обрабатываем сжатие контекста если нужно
+                if (request.compressContext && history.size >= 10) {
+                    val currentCompression = chatHistory.getCompressionInfo(request.chatId)
+                    val needsCompression = currentCompression == null ||
+                        (history.size - (currentCompression.compressedUpToIndex + 1)) >= 10
+
+                    if (needsCompression) {
+                        println("=== Выполняется сжатие контекста перед сравнением ===")
+                        val newCompression = contextCompressor.createOrUpdateCompression(
+                            currentMessages = history,
+                            existingCompression = currentCompression,
+                            keepLastN = 1,
+                            temperature = 0.3
+                        )
+
+                        if (request.compressSystemPrompt && newCompression != null &&
+                            newCompression.compressedSystemPrompt == null) {
+                            val compressedPrompt = contextCompressor.compressSystemPrompt(
+                                chatHistory.getSystemPrompt(),
+                                temperature = 0.3
+                            )
+                            chatHistory.updateCompressionInfo(
+                                request.chatId,
+                                newCompression.copy(compressedSystemPrompt = compressedPrompt)
+                            )
+                        } else if (newCompression != null) {
+                            chatHistory.updateCompressionInfo(request.chatId, newCompression)
+                        }
+                    }
+                }
+
+                // Базовые сообщения
+                val baseMessages = if (request.compressContext) {
+                    chatHistory.buildMessagesWithCompression(
+                        request.chatId, request.message, request.compressContext, request.compressSystemPrompt
+                    )
+                } else {
+                    listOf(Message("system", chatHistory.getSystemPrompt())) +
+                    history +
+                    listOf(Message("user", request.message))
+                }
+
+                // ========== ЗАПРОС С RAG ==========
+                println("=== Выполняется запрос С RAG ===")
+                val ragEnrichmentInfo = ragManager.augmentPromptWithKnowledgeDetailed(
+                    userQuery = request.message,
+                    originalMessages = baseMessages
+                )
+
+                val messagesWithRAG = if (ragEnrichmentInfo.ragUsed) {
+                    println("✅ RAG включен: найдено ${ragEnrichmentInfo.chunksCount} чанков")
+                    ragEnrichmentInfo.augmentedMessages
+                } else {
+                    println("⚠️ RAG не сработал (нет контекста)")
+                    baseMessages
+                }
+
+                // Запрос к LLM с RAG (БЕЗ MCP, для чистого сравнения)
+                val multiAgentResponseWithRAG = agentManager.processMessage(
+                    chatId = request.chatId,
+                    userMessage = request.message,
+                    history = history,
+                    temperature = request.temperature ?: 0.6,
+                    compressContext = request.compressContext,
+                    compressSystemPrompt = request.compressSystemPrompt,
+                    ragContext = ragEnrichmentInfo.ragContext
+                )
+
+                // ========== ЗАПРОС БЕЗ RAG ==========
+                println("=== Выполняется запрос БЕЗ RAG ===")
+                val multiAgentResponseWithoutRAG = agentManager.processMessage(
+                    chatId = request.chatId,
+                    userMessage = request.message,
+                    history = history,
+                    temperature = request.temperature ?: 0.6,
+                    compressContext = request.compressContext,
+                    compressSystemPrompt = request.compressSystemPrompt,
+                    ragContext = null // Явно НЕ передаем RAG контекст
+                )
+
+                // Формируем ответы
+                val tokenInfoWithRAG = usageToTokenInfo(multiAgentResponseWithRAG.totalUsage, modelType)
+                val tokenInfoWithoutRAG = usageToTokenInfo(multiAgentResponseWithoutRAG.totalUsage, modelType)
+
+                val contextWindowUsageWithRAG = multiAgentResponseWithRAG.totalUsage?.let { usage ->
+                    val inputTokens = usage.inputTextTokens.toIntOrNull() ?: 0
+                    val isActuallyCompressed = request.compressContext &&
+                        chatHistory.getCompressionInfo(request.chatId) != null
+                    chatHistory.calculateContextWindowUsage(
+                        chatId = request.chatId,
+                        currentRequestTokens = inputTokens,
+                        isCompressed = isActuallyCompressed
+                    )
+                }
+
+                val contextWindowUsageWithoutRAG = multiAgentResponseWithoutRAG.totalUsage?.let { usage ->
+                    val inputTokens = usage.inputTextTokens.toIntOrNull() ?: 0
+                    val isActuallyCompressed = request.compressContext &&
+                        chatHistory.getCompressionInfo(request.chatId) != null
+                    chatHistory.calculateContextWindowUsage(
+                        chatId = request.chatId,
+                        currentRequestTokens = inputTokens,
+                        isCompressed = isActuallyCompressed
+                    )
+                }
+
+                val responseWithRAG = ChatResponse(
+                    response = multiAgentResponseWithRAG.synthesis,
+                    title = multiAgentResponseWithRAG.title,
+                    isMultiAgent = multiAgentResponseWithRAG.isMultiAgent,
+                    agents = if (multiAgentResponseWithRAG.isMultiAgent) {
+                        multiAgentResponseWithRAG.agentResponses.map {
+                            kz.shprot.models.AgentResponseData(
+                                role = it.agentRole,
+                                content = it.content
+                            )
+                        }
+                    } else null,
+                    tokenUsage = tokenInfoWithRAG,
+                    contextWindowUsage = contextWindowUsageWithRAG,
+                    ragUsed = ragEnrichmentInfo.ragUsed,
+                    ragContext = ragEnrichmentInfo.ragContext
+                )
+
+                val responseWithoutRAG = ChatResponse(
+                    response = multiAgentResponseWithoutRAG.synthesis,
+                    title = multiAgentResponseWithoutRAG.title,
+                    isMultiAgent = multiAgentResponseWithoutRAG.isMultiAgent,
+                    agents = if (multiAgentResponseWithoutRAG.isMultiAgent) {
+                        multiAgentResponseWithoutRAG.agentResponses.map {
+                            kz.shprot.models.AgentResponseData(
+                                role = it.agentRole,
+                                content = it.content
+                            )
+                        }
+                    } else null,
+                    tokenUsage = tokenInfoWithoutRAG,
+                    contextWindowUsage = contextWindowUsageWithoutRAG,
+                    ragUsed = false,
+                    ragContext = null
+                )
+
+                // ВАЖНО: Сохраняем в историю только сообщение пользователя
+                // Не сохраняем ответы, т.к. это сравнение, а не реальный чат
+                println("ℹ️ Сравнение завершено. Ответы НЕ сохранены в историю чата (режим сравнения)")
+
+                val compareResponse = CompareResponse(
+                    withRAG = responseWithRAG,
+                    withoutRAG = responseWithoutRAG,
+                    ragContext = ragEnrichmentInfo.ragContext,
+                    ragChunksCount = ragEnrichmentInfo.chunksCount,
+                    similarityScores = ragEnrichmentInfo.similarityScores
+                )
+
+                call.respond(compareResponse)
             }
 
             // Тестовый endpoint для проверки MCP

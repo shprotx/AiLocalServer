@@ -8,7 +8,8 @@ data class ChatRequest(
     val chatId: Int,  // Теперь используем chatId вместо sessionId
     val temperature: Double? = 0.6,
     val compressContext: Boolean = false,
-    val compressSystemPrompt: Boolean = false
+    val compressSystemPrompt: Boolean = false,
+    val useRAG: Boolean = true  // Использовать RAG для обогащения контекста
 )
 
 @Serializable
@@ -19,7 +20,9 @@ data class ChatResponse(
     val agents: List<AgentResponseData>? = null,
     val tokenUsage: TokenUsageInfo? = null,
     val contextWindowUsage: ContextWindowUsage? = null,
-    val usedTools: List<String>? = null // Список использованных MCP инструментов
+    val usedTools: List<String>? = null, // Список использованных MCP инструментов
+    val ragUsed: Boolean = false, // Был ли использован RAG
+    val ragContext: String? = null // Контекст из базы знаний (если был использован)
 )
 
 @Serializable
@@ -201,4 +204,24 @@ data class DeleteDocumentResponse(
 @Serializable
 data class ErrorResponse(
     val error: String
+)
+
+// ==================== RAG Comparison Models ====================
+
+@Serializable
+data class CompareRequest(
+    val message: String,
+    val chatId: Int,
+    val temperature: Double? = 0.6,
+    val compressContext: Boolean = false,
+    val compressSystemPrompt: Boolean = false
+)
+
+@Serializable
+data class CompareResponse(
+    val withRAG: ChatResponse,
+    val withoutRAG: ChatResponse,
+    val ragContext: String?,
+    val ragChunksCount: Int, // Количество найденных чанков
+    val similarityScores: List<Double>? = null // Scores релевантности чанков
 )
