@@ -2329,11 +2329,41 @@
 
                 const data = await response.json();
 
-                // Отображаем сообщение пользователя
-                addMessage(message, true);
+                // НЕ добавляем сообщения вручную - они уже в БД
+                // Вместо этого перезагружаем историю чата из БД
+                clearChatContainer();
+                try {
+                    const historyResponse = await fetch(`/api/chats/${currentChatId}/messages`);
+                    const historyData = await historyResponse.json();
 
-                // Отображаем сравнение
-                displayComparisonResult(data);
+                    if (historyData.messages && historyData.messages.length > 0) {
+                        historyData.messages.forEach(msg => {
+                            if (msg.role === 'user') {
+                                addMessage(msg.content, true);
+                            } else if (msg.role === 'assistant') {
+                                // Check if this is a comparison result
+                                if (msg.content.startsWith('__COMPARISON__')) {
+                                    try {
+                                        // Extract JSON (remove prefix)
+                                        const jsonStr = msg.content.substring('__COMPARISON__'.length);
+                                        const comparisonData = JSON.parse(jsonStr);
+                                        // Display comparison in side-by-side format
+                                        displayComparisonResult(comparisonData);
+                                    } catch (error) {
+                                        console.error('Failed to parse comparison data:', error);
+                                        // Fallback to regular message if parsing fails
+                                        addMessage(msg.content, false);
+                                    }
+                                } else {
+                                    // Regular assistant message
+                                    addMessage(msg.content, false);
+                                }
+                            }
+                        });
+                    }
+                } catch (error) {
+                    console.error('Failed to reload chat history:', error);
+                }
 
                 // Обновляем счетчик сообщений
                 updateMessageCount();
