@@ -448,50 +448,15 @@ fun main() {
                 // Загружаем чат в память (если еще не загружен)
                 chatHistory.loadChat(request.chatId)
 
-                // Получаем историю сообщений для контекста
-                val history = chatHistory.getMessages(request.chatId)
+                // ⚠️ Для сравнения используем ПУСТУЮ историю - изолированный запрос
+                // Сравнение должно быть чистым: только один вопрос с RAG и без RAG
+                val history = emptyList<Message>()
 
-                // Обрабатываем сжатие контекста если нужно
-                if (request.compressContext && history.size >= 10) {
-                    val currentCompression = chatHistory.getCompressionInfo(request.chatId)
-                    val needsCompression = currentCompression == null ||
-                        (history.size - (currentCompression.compressedUpToIndex + 1)) >= 10
-
-                    if (needsCompression) {
-                        println("=== Выполняется сжатие контекста перед сравнением ===")
-                        val newCompression = contextCompressor.createOrUpdateCompression(
-                            currentMessages = history,
-                            existingCompression = currentCompression,
-                            keepLastN = 1,
-                            temperature = 0.3
-                        )
-
-                        if (request.compressSystemPrompt && newCompression != null &&
-                            newCompression.compressedSystemPrompt == null) {
-                            val compressedPrompt = contextCompressor.compressSystemPrompt(
-                                chatHistory.getSystemPrompt(),
-                                temperature = 0.3
-                            )
-                            chatHistory.updateCompressionInfo(
-                                request.chatId,
-                                newCompression.copy(compressedSystemPrompt = compressedPrompt)
-                            )
-                        } else if (newCompression != null) {
-                            chatHistory.updateCompressionInfo(request.chatId, newCompression)
-                        }
-                    }
-                }
-
-                // Базовые сообщения
-                val baseMessages = if (request.compressContext) {
-                    chatHistory.buildMessagesWithCompression(
-                        request.chatId, request.message, request.compressContext, request.compressSystemPrompt
-                    )
-                } else {
-                    listOf(Message("system", chatHistory.getSystemPrompt())) +
-                    history +
-                    listOf(Message("user", request.message))
-                }
+                // Базовые сообщения (без истории чата)
+                val baseMessages = listOf(
+                    Message("system", chatHistory.getSystemPrompt()),
+                    Message("user", request.message)
+                )
 
                 // ========== ЗАПРОС С RAG ==========
                 println("=== Выполняется запрос С RAG ===")
