@@ -890,6 +890,31 @@ fun main() {
                     )
                 }
             }
+
+            // Полная очистка базы знаний
+            delete("/api/knowledge/clear") {
+                try {
+                    println("🗑️ Запрос на полную очистку базы знаний")
+                    val cleared = db.clearKnowledgeBase()
+                    if (cleared) {
+                        call.respond(DeleteDocumentResponse(
+                            success = true,
+                            message = "База знаний полностью очищена (все документы и чанки удалены)"
+                        ))
+                    } else {
+                        call.respond(
+                            HttpStatusCode.InternalServerError,
+                            ErrorResponse(error = "Failed to clear knowledge base")
+                        )
+                    }
+                } catch (e: Exception) {
+                    println("❌ Ошибка при очистке базы знаний: ${e.message}")
+                    call.respond(
+                        HttpStatusCode.InternalServerError,
+                        ErrorResponse(error = e.message ?: "Unknown error")
+                    )
+                }
+            }
         }
     }.also { server ->
         // Graceful shutdown для MCP серверов и планировщика

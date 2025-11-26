@@ -1533,6 +1533,13 @@
                     </div>
                 </div>
 
+                <!-- Clear All Button -->
+                <div style="padding: 12px 20px;">
+                    <button id="clearKnowledgeBaseButton" style="width: 100%; padding: 10px; background: #f44336; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">
+                        🗑️ Очистить всю базу знаний
+                    </button>
+                </div>
+
                 <!-- Documents List -->
                 <div class="kb-documents-list" id="kbDocumentsList">
                     <!-- Documents will be dynamically loaded here -->
@@ -2743,6 +2750,35 @@
                 showToast('Ошибка удаления документа', 'error');
             }
         }
+
+        async function clearKnowledgeBase() {
+            if (!confirm('⚠️ ВНИМАНИЕ! Это удалит ВСЕ документы и чанки из базы знаний.\n\nВы уверены что хотите продолжить?')) {
+                return;
+            }
+
+            try {
+                showToast('Очистка базы знаний...', 'info');
+
+                const response = await fetch('/api/knowledge/clear', {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                showToast(data.message || 'База знаний очищена', 'success');
+                loadKnowledgeBaseStats();
+                loadKnowledgeBaseDocuments();
+            } catch (error) {
+                console.error('Ошибка очистки базы знаний:', error);
+                showToast('Ошибка очистки базы знаний', 'error');
+            }
+        }
+
+        // Обработчик кнопки очистки
+        document.getElementById('clearKnowledgeBaseButton')?.addEventListener('click', clearKnowledgeBase);
 
         // Drag & Drop для загрузки файлов
         kbUploadArea.addEventListener('click', () => {

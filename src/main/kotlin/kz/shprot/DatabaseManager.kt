@@ -382,6 +382,31 @@ class DatabaseManager(private val dbPath: String = "chats.db") {
     }
 
     /**
+     * Полная очистка базы знаний (все документы и чанки)
+     */
+    fun clearKnowledgeBase(): Boolean = runCatching {
+        connection?.createStatement()?.use { statement ->
+            // Сначала удаляем все чанки
+            val chunksDeleted = statement.executeUpdate("DELETE FROM chunks")
+            println("🗑️ Удалено чанков: $chunksDeleted")
+
+            // Затем удаляем все документы
+            val docsDeleted = statement.executeUpdate("DELETE FROM documents")
+            println("🗑️ Удалено документов: $docsDeleted")
+
+            // Сбрасываем счетчик автоинкремента для SQLite
+            statement.executeUpdate("DELETE FROM sqlite_sequence WHERE name='documents'")
+            statement.executeUpdate("DELETE FROM sqlite_sequence WHERE name='chunks'")
+            println("✅ База знаний полностью очищена")
+        }
+        true
+    }.getOrElse { e ->
+        println("❌ Ошибка при очистке базы знаний: ${e.message}")
+        e.printStackTrace()
+        false
+    }
+
+    /**
      * Закрытие соединения с БД
      */
     fun close() {
