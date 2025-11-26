@@ -1317,6 +1317,45 @@
             margin-bottom: 16px;
             opacity: 0.5;
         }
+
+        /* RAG Statistics Styles */
+        .rag-stats {
+            margin-top: 12px;
+            padding: 12px;
+            background: #F5F5F5;
+            border-radius: 8px;
+            border-left: 4px solid #2196F3;
+        }
+
+        .rag-stats-header {
+            font-size: 13px;
+            font-weight: 600;
+            color: #1976D2;
+            margin-bottom: 8px;
+        }
+
+        .rag-stats-content {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+        }
+
+        .stat-label {
+            color: rgba(0,0,0,0.6);
+        }
+
+        .stat-value {
+            font-weight: 500;
+            color: rgba(0,0,0,0.87);
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
     </style>
 </head>
 <body>
@@ -1420,6 +1459,18 @@
                         <input type="checkbox" id="useRAGToggle" checked />
                         <label for="useRAGToggle">📚 Использовать RAG (база знаний)</label>
                     </div>
+                    <div class="compression-control-item">
+                        <label for="ragFilterModeSelect" style="margin-right: 8px;">Режим фильтрации:</label>
+                        <select id="ragFilterModeSelect" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #E0E0E0; font-size: 12px; cursor: pointer;">
+                            <option value="default">Default (сбалансированный)</option>
+                            <option value="strict">Strict (строгий)</option>
+                            <option value="lenient">Lenient (мягкий)</option>
+                        </select>
+                    </div>
+                    <div class="compression-control-item">
+                        <input type="checkbox" id="useRerankingToggle" checked />
+                        <label for="useRerankingToggle">🔄 Включить Reranking</label>
+                    </div>
                 </div>
 
                 <div class="temperature-label">
@@ -1505,6 +1556,8 @@
         const compressSystemPromptToggle = document.getElementById('compressSystemPromptToggle');
         const compressSystemPromptLabel = document.querySelector('label[for="compressSystemPromptToggle"]');
         const useRAGToggle = document.getElementById('useRAGToggle');
+        const ragFilterModeSelect = document.getElementById('ragFilterModeSelect');
+        const useRerankingToggle = document.getElementById('useRerankingToggle');
         const compareButton = document.getElementById('compareButton');
         const newChatButton = document.getElementById('newChatButton');
         const knowledgeBaseButton = document.getElementById('knowledgeBaseButton');
@@ -2204,7 +2257,9 @@
                     temperature: temperature,
                     compressContext: compressContextToggle.checked,
                     compressSystemPrompt: compressSystemPromptToggle.checked,
-                    useRAG: useRAGToggle.checked
+                    useRAG: useRAGToggle.checked,
+                    ragFilterMode: ragFilterModeSelect.value,
+                    useReranking: useRerankingToggle.checked
                 };
 
                 const response = await fetch('/api/chat', {
@@ -2317,7 +2372,9 @@
                         chatId: currentChatId,
                         temperature: parseFloat(temperatureInput.value),
                         compressContext: compressContextToggle.checked,
-                        compressSystemPrompt: compressSystemPromptToggle.checked
+                        compressSystemPrompt: compressSystemPromptToggle.checked,
+                        ragFilterMode: ragFilterModeSelect.value,
+                        useReranking: useRerankingToggle.checked
                     })
                 });
 
@@ -2450,6 +2507,73 @@
                 ragContextSection.appendChild(contextContent);
 
                 withRAGColumn.appendChild(ragContextSection);
+            }
+
+            // RAG Statistics
+            if (data.filteringStats) {
+                const filteringStatsDiv = document.createElement('div');
+                filteringStatsDiv.className = 'rag-stats';
+                filteringStatsDiv.innerHTML = `
+                    <div class="rag-stats-header">📊 Статистика фильтрации</div>
+                    <div class="rag-stats-content">
+                        <div class="stat-row">
+                            <span class="stat-label">Всего чанков:</span>
+                            <span class="stat-value">${data.filteringStats.totalChunks}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">После 1-й фильтрации:</span>
+                            <span class="stat-value">${data.filteringStats.afterPrimaryFilter}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">После 2-й фильтрации:</span>
+                            <span class="stat-value">${data.filteringStats.afterSmartFilter}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Финальных результатов:</span>
+                            <span class="stat-value">${data.filteringStats.finalResults}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Средняя релевантность:</span>
+                            <span class="stat-value">${data.filteringStats.avgSimilarityBefore.toFixed(3)} → ${data.filteringStats.avgSimilarityAfter.toFixed(3)}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Время обработки:</span>
+                            <span class="stat-value">${data.filteringStats.processingTimeMs}ms</span>
+                        </div>
+                    </div>
+                `;
+                withRAGColumn.appendChild(filteringStatsDiv);
+            }
+
+            if (data.rerankingStats) {
+                const rerankingStatsDiv = document.createElement('div');
+                rerankingStatsDiv.className = 'rag-stats';
+                rerankingStatsDiv.innerHTML = `
+                    <div class="rag-stats-header">🔄 Статистика Reranking</div>
+                    <div class="rag-stats-content">
+                        <div class="stat-row">
+                            <span class="stat-label">Кандидатов:</span>
+                            <span class="stat-value">${data.rerankingStats.totalCandidates}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Переранжировано:</span>
+                            <span class="stat-value">${data.rerankingStats.rerankedCount}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Средний скор:</span>
+                            <span class="stat-value">${data.rerankingStats.avgScoreBefore.toFixed(3)} → ${data.rerankingStats.avgScoreAfter.toFixed(3)}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Улучшение:</span>
+                            <span class="stat-value" style="color: #4CAF50; font-weight: 600;">+${data.rerankingStats.scoreImprovement.toFixed(2)}%</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Время обработки:</span>
+                            <span class="stat-value">${data.rerankingStats.processingTimeMs}ms</span>
+                        </div>
+                    </div>
+                `;
+                withRAGColumn.appendChild(rerankingStatsDiv);
             }
 
             // Token info

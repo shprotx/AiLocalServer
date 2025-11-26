@@ -5,58 +5,225 @@ import kotlin.math.sqrt
 /**
  * Менеджер для векторного поиска по базе знаний
  *
- * Использует косинусное сходство для поиска наиболее релевантных чанков
+ * Использует косинусное сходство для поиска наиболее релевантных чанков.
+ * Поддерживает гибридную фильтрацию с настраиваемыми порогами.
  */
 class VectorSearchManager(
-    private val databaseManager: DatabaseManager,
-    private val topK: Int = 5,                  // Сколько топ результатов возвращать
-    private val similarityThreshold: Double = 0.5   // Минимальное сходство для фильтрации
+    private val databaseManager: DatabaseManager
 ) {
     /**
-     * Поиск релевантных чанков по эмбеддингу запроса
-     *
-     * Алгоритм:
-     * 1. Загружаем все чанки из БД
-     * 2. Вычисляем косинусное сходство для каждого чанка
-     * 3. Фильтруем по threshold
-     * 4. Сортируем по убыванию сходства
-     * 5. Возвращаем топ-K результатов
+     * Параметры фильтрации для гибридного поиска
+     */
+    data class FilteringConfig(
+        val initialCandidates: Int = 20,           // Сколько кандидатов взять на первом этапе
+        val primaryThreshold: Double = 0.3,        // Первичный порог (низкий, чтобы не упустить)
+        val smartThreshold: Double = 0.5,          // Умный порог для финальной фильтрации
+        val topK: Int = 5,                         // Финальное количество результатов
+        val removeDuplicates: Boolean = true       // Удалять дубликаты по содержанию
+    ) {
+        companion object {
+            // Дефолтная конфигурация
+            val DEFAULT = FilteringConfig()
+
+            // Строгая фильтрация (для точных вопросов)
+            val STRICT = FilteringConfig(
+                initialCandidates = 15,
+                primaryThreshold = 0.4,
+                smartThreshold = 0.65,
+                topK = 3
+            )
+
+            // Мягкая фильтрация (для широких вопросов)
+            val LENIENT = FilteringConfig(
+                initialCandidates = 30,
+                primaryThreshold = 0.2,
+                smartThreshold = 0.4,
+                topK = 7
+            )
+        }
+    }
+    /**
+     * Поиск релевантных чанков по эмбеддингу запроса (старый метод для обратной совместимости)
      *
      * @param queryEmbedding эмбеддинг поискового запроса
      * @return список релевантных чанков с их сходством
      */
     fun searchSimilarChunks(queryEmbedding: List<Double>): List<SearchResult> {
+        return searchSimilarChunksWithStats(queryEmbedding, FilteringConfig.DEFAULT).results
+    }
+
+    /**
+     * Поиск релевантных чанков с детальной статистикой (гибридная фильтрация)
+     *
+     * Алгоритм (вариант 3 - гибридный):
+     * 1. Первичная фильтрация: загружаем все чанки и вычисляем similarity
+     * 2. Берем топ-N кандидатов с низким порогом (чтобы не упустить)
+     * 3. Умная фильтрация: удаляем дубликаты, фильтруем по смарт-порогу
+     * 4. Сортируем и возвращаем топ-K с детальной статистикой
+     *
+     * @param queryEmbedding эмбеддинг поискового запроса
+     * @param config конфигурация фильтрации
+     * @return результаты с детальной статистикой
+     */
+    fun searchSimilarChunksWithStats(
+        queryEmbedding: List<Double>,
+        config: FilteringConfig = FilteringConfig.DEFAULT
+    ): SearchResultWithStats {
+        val startTime = System.currentTimeMillis()
+
         // Загружаем все чанки из БД
         val allChunks = databaseManager.getAllChunks()
 
         if (allChunks.isEmpty()) {
             println("⚠️ База знаний пуста")
-            return emptyList()
-        }
-
-        println("🔍 Поиск в базе знаний: ${allChunks.size} чанков")
-
-        // Вычисляем сходство для каждого чанка
-        val results = allChunks.map { chunk ->
-            val similarity = cosineSimilarity(queryEmbedding, chunk.embedding)
-            SearchResult(
-                chunk = chunk,
-                similarity = similarity
+            return SearchResultWithStats(
+                results = emptyList(),
+                stats = FilteringStats(
+                    totalChunks = 0,
+                    afterPrimaryFilter = 0,
+                    afterSmartFilter = 0,
+                    finalResults = 0,
+                    avgSimilarityBefore = 0.0,
+                    avgSimilarityAfter = 0.0,
+                    minSimilarity = 0.0,
+                    maxSimilarity = 0.0,
+                    similarityDistribution = emptyList(),
+                    processingTimeMs = 0,
+                    filteringConfig = config
+                )
             )
         }
 
-        // Фильтруем по threshold, сортируем и берем топ-K
-        val topResults = results
-            .filter { it.similarity >= similarityThreshold }
-            .sortedByDescending { it.similarity }
-            .take(topK)
+        println("🔍 Гибридный поиск: ${allChunks.size} чанков в базе")
 
-        println("✅ Найдено релевантных чанков: ${topResults.size} (threshold=$similarityThreshold)")
-        topResults.forEachIndexed { index, result ->
-            println("  ${index + 1}. Similarity: ${String.format("%.3f", result.similarity)} - ${result.chunk.content.take(100)}...")
+        // 1. Вычисляем сходство для всех чанков
+        // ВАЖНО: Пропускаем чанки с несовместимой размерностью эмбеддинга
+        val allResults = allChunks.mapNotNull { chunk ->
+            // Проверяем размерность эмбеддинга
+            if (chunk.embedding.size != queryEmbedding.size) {
+                println("  ⚠️ Пропускаем чанк ${chunk.id}: несовместимая размерность эмбеддинга (${chunk.embedding.size} vs ${queryEmbedding.size})")
+                return@mapNotNull null
+            }
+
+            val similarity = cosineSimilarity(queryEmbedding, chunk.embedding)
+            SearchResult(chunk = chunk, similarity = similarity)
+        }.sortedByDescending { it.similarity }
+
+        println("  ✓ Обработано ${allResults.size} чанков (пропущено: ${allChunks.size - allResults.size})")
+
+        // Если нет совместимых чанков - возвращаем пустой результат
+        if (allResults.isEmpty()) {
+            println("⚠️ Нет чанков с совместимой размерностью эмбеддинга")
+            return SearchResultWithStats(
+                results = emptyList(),
+                stats = FilteringStats(
+                    totalChunks = allChunks.size,
+                    afterPrimaryFilter = 0,
+                    afterSmartFilter = 0,
+                    finalResults = 0,
+                    avgSimilarityBefore = 0.0,
+                    avgSimilarityAfter = 0.0,
+                    minSimilarity = 0.0,
+                    maxSimilarity = 0.0,
+                    similarityDistribution = emptyList(),
+                    processingTimeMs = System.currentTimeMillis() - startTime,
+                    filteringConfig = config
+                )
+            )
         }
 
-        return topResults
+        val avgSimilarityBefore = allResults.map { it.similarity }.average()
+
+        // 2. Первичная фильтрация: берем топ-N кандидатов с низким порогом
+        val primaryFiltered = allResults
+            .filter { it.similarity >= config.primaryThreshold }
+            .take(config.initialCandidates)
+
+        println("  ✓ Первичная фильтрация: ${primaryFiltered.size} кандидатов (порог: ${config.primaryThreshold})")
+
+        // 3. Умная фильтрация: удаляем дубликаты и применяем смарт-порог
+        var smartFiltered = primaryFiltered
+            .filter { it.similarity >= config.smartThreshold }
+
+        println("  ✓ Умная фильтрация: ${smartFiltered.size} чанков (порог: ${config.smartThreshold})")
+
+        // Удаляем дубликаты (если включено)
+        if (config.removeDuplicates && smartFiltered.isNotEmpty()) {
+            smartFiltered = removeDuplicateChunks(smartFiltered)
+            println("  ✓ Удаление дубликатов: осталось ${smartFiltered.size} чанков")
+        }
+
+        // 4. Берем финальный топ-K
+        val finalResults = smartFiltered.take(config.topK)
+
+        val avgSimilarityAfter = if (finalResults.isNotEmpty()) {
+            finalResults.map { it.similarity }.average()
+        } else 0.0
+
+        val processingTime = System.currentTimeMillis() - startTime
+
+        // Формируем статистику
+        val stats = FilteringStats(
+            totalChunks = allChunks.size,
+            afterPrimaryFilter = primaryFiltered.size,
+            afterSmartFilter = smartFiltered.size,
+            finalResults = finalResults.size,
+            avgSimilarityBefore = avgSimilarityBefore,
+            avgSimilarityAfter = avgSimilarityAfter,
+            minSimilarity = finalResults.minOfOrNull { it.similarity } ?: 0.0,
+            maxSimilarity = finalResults.maxOfOrNull { it.similarity } ?: 0.0,
+            similarityDistribution = finalResults.map { it.similarity },
+            processingTimeMs = processingTime,
+            filteringConfig = config
+        )
+
+        println("✅ Найдено релевантных чанков: ${finalResults.size} (время: ${processingTime}ms)")
+        finalResults.forEachIndexed { index, result ->
+            println("  ${index + 1}. Similarity: ${String.format("%.3f", result.similarity)} - ${result.chunk.content.take(80)}...")
+        }
+
+        return SearchResultWithStats(
+            results = finalResults,
+            stats = stats
+        )
+    }
+
+    /**
+     * Удаление дубликатов чанков по содержанию
+     *
+     * Чанки считаются дубликатами если у них схожее содержание (>70% совпадения)
+     */
+    private fun removeDuplicateChunks(chunks: List<SearchResult>): List<SearchResult> {
+        val unique = mutableListOf<SearchResult>()
+
+        for (chunk in chunks) {
+            val isDuplicate = unique.any { existing ->
+                val similarity = textSimilarity(existing.chunk.content, chunk.chunk.content)
+                similarity > 0.7 // 70% схожести считаем дубликатом
+            }
+
+            if (!isDuplicate) {
+                unique.add(chunk)
+            }
+        }
+
+        return unique
+    }
+
+    /**
+     * Простая оценка схожести текстов (по словам)
+     */
+    private fun textSimilarity(text1: String, text2: String): Double {
+        val words1 = text1.lowercase().split(Regex("\\s+")).toSet()
+        val words2 = text2.lowercase().split(Regex("\\s+")).toSet()
+
+        if (words1.isEmpty() && words2.isEmpty()) return 1.0
+        if (words1.isEmpty() || words2.isEmpty()) return 0.0
+
+        val intersection = words1.intersect(words2).size
+        val union = words1.union(words2).size
+
+        return intersection.toDouble() / union.toDouble()
     }
 
     /**
@@ -114,4 +281,29 @@ class VectorSearchManager(
 data class SearchResult(
     val chunk: ChunkData,
     val similarity: Double
+)
+
+/**
+ * Результат поиска с детальной статистикой фильтрации
+ */
+data class SearchResultWithStats(
+    val results: List<SearchResult>,
+    val stats: FilteringStats
+)
+
+/**
+ * Статистика гибридной фильтрации
+ */
+data class FilteringStats(
+    val totalChunks: Int,                              // Всего чанков в базе
+    val afterPrimaryFilter: Int,                       // После первичной фильтрации
+    val afterSmartFilter: Int,                         // После умной фильтрации
+    val finalResults: Int,                             // Финальное количество результатов
+    val avgSimilarityBefore: Double,                   // Средний similarity до фильтрации
+    val avgSimilarityAfter: Double,                    // Средний similarity после фильтрации
+    val minSimilarity: Double,                         // Минимальный similarity в результатах
+    val maxSimilarity: Double,                         // Максимальный similarity в результатах
+    val similarityDistribution: List<Double>,          // Распределение similarity
+    val processingTimeMs: Long,                        // Время обработки в мс
+    val filteringConfig: VectorSearchManager.FilteringConfig  // Использованная конфигурация
 )

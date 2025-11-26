@@ -9,7 +9,10 @@ data class ChatRequest(
     val temperature: Double? = 0.6,
     val compressContext: Boolean = false,
     val compressSystemPrompt: Boolean = false,
-    val useRAG: Boolean = true  // Использовать RAG для обогащения контекста
+    val useRAG: Boolean = true,  // Использовать RAG для обогащения контекста
+    // Новые параметры для гибридной фильтрации
+    val ragFilterMode: String = "default",  // "default", "strict", "lenient"
+    val useReranking: Boolean = true        // Включить переранжирование
 )
 
 @Serializable
@@ -22,7 +25,11 @@ data class ChatResponse(
     val contextWindowUsage: ContextWindowUsage? = null,
     val usedTools: List<String>? = null, // Список использованных MCP инструментов
     val ragUsed: Boolean = false, // Был ли использован RAG
-    val ragContext: String? = null // Контекст из базы знаний (если был использован)
+    val ragContext: String? = null, // Контекст из базы знаний (если был использован)
+    // Новые поля для детальной статистики RAG
+    val ragChunksCount: Int? = null,           // Количество использованных чанков
+    val ragFilteringStats: RAGFilteringStatsData? = null,  // Статистика фильтрации
+    val ragRerankingStats: RAGRerankingStatsData? = null   // Статистика reranking
 )
 
 @Serializable
@@ -214,7 +221,10 @@ data class CompareRequest(
     val chatId: Int,
     val temperature: Double? = 0.6,
     val compressContext: Boolean = false,
-    val compressSystemPrompt: Boolean = false
+    val compressSystemPrompt: Boolean = false,
+    // Новые параметры для гибридной фильтрации
+    val ragFilterMode: String = "default",
+    val useReranking: Boolean = true
 )
 
 @Serializable
@@ -223,5 +233,39 @@ data class CompareResponse(
     val withoutRAG: ChatResponse,
     val ragContext: String?,
     val ragChunksCount: Int, // Количество найденных чанков
-    val similarityScores: List<Double>? = null // Scores релевантности чанков
+    val similarityScores: List<Double>? = null, // Scores релевантности чанков
+    // Новые поля для детальной статистики
+    val filteringStats: RAGFilteringStatsData? = null,
+    val rerankingStats: RAGRerankingStatsData? = null
+)
+
+// ==================== RAG Statistics Models ====================
+
+/**
+ * Статистика фильтрации для передачи в клиент
+ */
+@Serializable
+data class RAGFilteringStatsData(
+    val totalChunks: Int,
+    val afterPrimaryFilter: Int,
+    val afterSmartFilter: Int,
+    val finalResults: Int,
+    val avgSimilarityBefore: Double,
+    val avgSimilarityAfter: Double,
+    val minSimilarity: Double,
+    val maxSimilarity: Double,
+    val processingTimeMs: Long
+)
+
+/**
+ * Статистика reranking для передачи в клиент
+ */
+@Serializable
+data class RAGRerankingStatsData(
+    val totalCandidates: Int,
+    val rerankedCount: Int,
+    val avgScoreBefore: Double,
+    val avgScoreAfter: Double,
+    val scoreImprovement: Double,
+    val processingTimeMs: Long
 )

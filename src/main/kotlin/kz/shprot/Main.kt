@@ -44,6 +44,56 @@ fun usageToTokenInfo(usage: kz.shprot.models.Usage?, modelType: String): kz.shpr
     )
 }
 
+/**
+ * Helper функция для конвертации параметров из запроса в RAGConfig
+ */
+fun buildRAGConfig(filterMode: String, useReranking: Boolean): RAGManager.RAGConfig {
+    val filteringConfig = when (filterMode) {
+        "strict" -> VectorSearchManager.FilteringConfig.STRICT
+        "lenient" -> VectorSearchManager.FilteringConfig.LENIENT
+        else -> VectorSearchManager.FilteringConfig.DEFAULT
+    }
+
+    return RAGManager.RAGConfig(
+        filteringConfig = filteringConfig,
+        useReranking = useReranking,
+        rerankingTopK = 5
+    )
+}
+
+/**
+ * Helper функция для конвертации FilteringStats в API модель
+ */
+fun toFilteringStatsData(stats: FilteringStats?): RAGFilteringStatsData? {
+    if (stats == null) return null
+    return RAGFilteringStatsData(
+        totalChunks = stats.totalChunks,
+        afterPrimaryFilter = stats.afterPrimaryFilter,
+        afterSmartFilter = stats.afterSmartFilter,
+        finalResults = stats.finalResults,
+        avgSimilarityBefore = stats.avgSimilarityBefore,
+        avgSimilarityAfter = stats.avgSimilarityAfter,
+        minSimilarity = stats.minSimilarity,
+        maxSimilarity = stats.maxSimilarity,
+        processingTimeMs = stats.processingTimeMs
+    )
+}
+
+/**
+ * Helper функция для конвертации RerankingStats в API модель
+ */
+fun toRerankingStatsData(stats: RerankingStats?): RAGRerankingStatsData? {
+    if (stats == null) return null
+    return RAGRerankingStatsData(
+        totalCandidates = stats.totalCandidates,
+        rerankedCount = stats.rerankedCount,
+        avgScoreBefore = stats.avgScoreBefore,
+        avgScoreAfter = stats.avgScoreAfter,
+        scoreImprovement = stats.scoreImprovement,
+        processingTimeMs = stats.processingTimeMs
+    )
+}
+
 fun main() {
     val apiKey = System.getenv("YANDEX_API_KEY")
     val folderId = System.getenv("YANDEX_FOLDER_ID")
@@ -64,12 +114,16 @@ fun main() {
     val db = DatabaseManager("chats.db")
     val chatHistory = ChatHistory(db)
 
-    // Инициализация RAG системы (база знаний)
-    val ollamaClient = OllamaClient()
+    // Инициализация RAG системы (база знаний) с гибридной фильтрацией и reranking
+    val ollamaClient = OllamaClient(
+        embeddingModel = "bge-m3",          // Модель для генерации эмбеддингов
+        rerankingModel = "nomic-embed-text"  // Модель для reranking
+    )
     val documentProcessor = DocumentProcessor(chunkSize = 1000, overlap = 200)
     val embeddingsManager = EmbeddingsManager(ollamaClient, db, documentProcessor)
-    val vectorSearchManager = VectorSearchManager(db, topK = 5, similarityThreshold = 0.5)
-    val ragManager = RAGManager(embeddingsManager, vectorSearchManager)
+    val vectorSearchManager = VectorSearchManager(db)  // Теперь без фиксированных параметров
+    val rerankingManager = RerankingManager(ollamaClient)  // Новый менеджер для reranking
+    val ragManager = RAGManager(embeddingsManager, vectorSearchManager, rerankingManager)
 
     val contextCompressor = ContextCompressor(llmClient)
     val agentManager = AgentManager(apiKey, modelUri, chatHistory)
@@ -282,21 +336,19 @@ fun main() {
                 }
 
                 // Пытаемся обогатить контекстом из базы знаний (только если useRAG включен)
-                var ragUsed = false
-                var ragContext: String? = null
+                var ragEnrichmentInfo: RAGManager.RAGEnrichmentInfo? = null
 
                 if (request.useRAG) {
-                    val (augmentedMessages, wasRagUsed, foundContext) = ragManager.augmentPromptWithKnowledge(
+                    val ragConfig = buildRAGConfig(request.ragFilterMode, request.useReranking)
+                    ragEnrichmentInfo = ragManager.augmentPromptWithKnowledgeDetailed(
                         userQuery = request.message,
-                        originalMessages = baseMessages
+                        originalMessages = baseMessages,
+                        config = ragConfig
                     )
 
-                    ragUsed = wasRagUsed
-                    ragContext = foundContext
-
-                    if (ragUsed) {
+                    if (ragEnrichmentInfo.ragUsed) {
                         println("✅ Запрос обогащен контекстом из базы знаний")
-                        baseMessages = augmentedMessages
+                        baseMessages = ragEnrichmentInfo.augmentedMessages
                     } else {
                         println("ℹ️ База знаний не использовалась (нет релевантного контекста или Ollama недоступна)")
                     }
@@ -353,8 +405,11 @@ fun main() {
                         tokenUsage = tokenInfo,
                         contextWindowUsage = contextWindowUsage,
                         usedTools = toolCallResult.usedTools.takeIf { it.isNotEmpty() }, // Передаем использованные инструменты
-                        ragUsed = ragUsed,
-                        ragContext = ragContext
+                        ragUsed = ragEnrichmentInfo?.ragUsed ?: false,
+                        ragContext = ragEnrichmentInfo?.ragContext,
+                        ragChunksCount = ragEnrichmentInfo?.chunksCount,
+                        ragFilteringStats = toFilteringStatsData(ragEnrichmentInfo?.filteringStats),
+                        ragRerankingStats = toRerankingStatsData(ragEnrichmentInfo?.rerankingStats)
                     )
 
                     call.respond(mcpResponse)
@@ -364,15 +419,16 @@ fun main() {
                 println("=== MCP tool не требуется, используем multi-agent систему ===")
 
                 // Обрабатываем сообщение через multi-agent систему
-                // ВАЖНО: Передаём RAG контекст в agentManager
+                // ВАЖНО: Используем baseMessages (уже обогащенные RAG контекстом)
+                val historyForAgents = baseMessages.filter { it.role != "user" }
                 val multiAgentResponse = agentManager.processMessage(
                     chatId = request.chatId,
                     userMessage = request.message,
-                    history = history,
+                    history = historyForAgents,
                     temperature = request.temperature ?: 0.6,
                     compressContext = request.compressContext,
                     compressSystemPrompt = request.compressSystemPrompt,
-                    ragContext = ragContext
+                    ragContext = ragEnrichmentInfo?.ragContext
                 )
 
                 // Конвертируем Usage в TokenUsageInfo
@@ -419,8 +475,11 @@ fun main() {
                         },
                         tokenUsage = tokenInfo,
                         contextWindowUsage = contextWindowUsage,
-                        ragUsed = ragUsed,
-                        ragContext = ragContext
+                        ragUsed = ragEnrichmentInfo?.ragUsed ?: false,
+                        ragContext = ragEnrichmentInfo?.ragContext,
+                        ragChunksCount = ragEnrichmentInfo?.chunksCount,
+                        ragFilteringStats = toFilteringStatsData(ragEnrichmentInfo?.filteringStats),
+                        ragRerankingStats = toRerankingStatsData(ragEnrichmentInfo?.rerankingStats)
                     )
                 } else {
                     ChatResponse(
@@ -430,8 +489,11 @@ fun main() {
                         agents = null,
                         tokenUsage = tokenInfo,
                         contextWindowUsage = contextWindowUsage,
-                        ragUsed = ragUsed,
-                        ragContext = ragContext
+                        ragUsed = ragEnrichmentInfo?.ragUsed ?: false,
+                        ragContext = ragEnrichmentInfo?.ragContext,
+                        ragChunksCount = ragEnrichmentInfo?.chunksCount,
+                        ragFilteringStats = toFilteringStatsData(ragEnrichmentInfo?.filteringStats),
+                        ragRerankingStats = toRerankingStatsData(ragEnrichmentInfo?.rerankingStats)
                     )
                 }
 
@@ -460,9 +522,11 @@ fun main() {
 
                 // ========== ЗАПРОС С RAG ==========
                 println("=== Выполняется запрос С RAG ===")
+                val ragConfig = buildRAGConfig(request.ragFilterMode, request.useReranking)
                 val ragEnrichmentInfo = ragManager.augmentPromptWithKnowledgeDetailed(
                     userQuery = request.message,
-                    originalMessages = baseMessages
+                    originalMessages = baseMessages,
+                    config = ragConfig
                 )
 
                 val messagesWithRAG = if (ragEnrichmentInfo.ragUsed) {
@@ -537,7 +601,10 @@ fun main() {
                     tokenUsage = tokenInfoWithRAG,
                     contextWindowUsage = contextWindowUsageWithRAG,
                     ragUsed = ragEnrichmentInfo.ragUsed,
-                    ragContext = ragEnrichmentInfo.ragContext
+                    ragContext = ragEnrichmentInfo.ragContext,
+                    ragChunksCount = ragEnrichmentInfo.chunksCount,
+                    ragFilteringStats = toFilteringStatsData(ragEnrichmentInfo.filteringStats),
+                    ragRerankingStats = toRerankingStatsData(ragEnrichmentInfo.rerankingStats)
                 )
 
                 val responseWithoutRAG = ChatResponse(
@@ -564,7 +631,9 @@ fun main() {
                     withoutRAG = responseWithoutRAG,
                     ragContext = ragEnrichmentInfo.ragContext,
                     ragChunksCount = ragEnrichmentInfo.chunksCount,
-                    similarityScores = ragEnrichmentInfo.similarityScores
+                    similarityScores = ragEnrichmentInfo.similarityScores,
+                    filteringStats = toFilteringStatsData(ragEnrichmentInfo.filteringStats),
+                    rerankingStats = toRerankingStatsData(ragEnrichmentInfo.rerankingStats)
                 )
 
                 // Сериализуем сравнение в JSON и сохраняем как специальное сообщение

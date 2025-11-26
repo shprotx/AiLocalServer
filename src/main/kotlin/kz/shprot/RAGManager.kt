@@ -5,16 +5,27 @@ import kz.shprot.models.Message
 /**
  * Менеджер для RAG (Retrieval-Augmented Generation)
  *
- * Интегрирует векторный поиск с основной LLM:
- * 1. Генерирует эмбеддинг для запроса пользователя
- * 2. Ищет релевантные чанки в базе знаний
- * 3. Добавляет найденные чанки в контекст для LLM
- * 4. LLM генерирует ответ с учетом базы знаний
+ * Интегрирует векторный поиск с основной LLM используя гибридный подход:
+ * 1. Генерирует эмбеддинг для запроса пользователя (через bge-m3)
+ * 2. Ищет релевантные чанки в базе знаний (гибридная фильтрация)
+ * 3. Опционально: переранжирование топ-N чанков (через nomic-embed-text)
+ * 4. Добавляет найденные чанки в контекст для LLM
+ * 5. LLM генерирует ответ с учетом базы знаний
  */
 class RAGManager(
     private val embeddingsManager: EmbeddingsManager,
-    private val vectorSearchManager: VectorSearchManager
+    private val vectorSearchManager: VectorSearchManager,
+    private val rerankingManager: RerankingManager
 ) {
+    /**
+     * Конфигурация RAG пайплайна
+     */
+    data class RAGConfig(
+        val filteringConfig: VectorSearchManager.FilteringConfig = VectorSearchManager.FilteringConfig.DEFAULT,
+        val useReranking: Boolean = true,
+        val rerankingTopK: Int = 5
+    )
+
     /**
      * Детальная информация о RAG обогащении
      */
@@ -23,36 +34,51 @@ class RAGManager(
         val ragUsed: Boolean,
         val ragContext: String?,
         val chunksCount: Int,
-        val similarityScores: List<Double>
+        val similarityScores: List<Double>,
+        // Новые поля для детальной статистики
+        val filteringStats: FilteringStats? = null,
+        val rerankingStats: RerankingStats? = null
     )
 
     /**
-     * Обогащение промпта контекстом из базы знаний
+     * Обогащение промпта контекстом из базы знаний (упрощенный метод)
      *
      * @param userQuery запрос пользователя
      * @param originalMessages исходный список сообщений для LLM
+     * @param config конфигурация RAG пайплайна
      * @return Triple(augmentedMessages, ragUsed, ragContext)
      */
     suspend fun augmentPromptWithKnowledge(
         userQuery: String,
-        originalMessages: List<Message>
+        originalMessages: List<Message>,
+        config: RAGConfig = RAGConfig()
     ): Triple<List<Message>, Boolean, String?> {
-        val enrichmentInfo = augmentPromptWithKnowledgeDetailed(userQuery, originalMessages)
+        val enrichmentInfo = augmentPromptWithKnowledgeDetailed(userQuery, originalMessages, config)
         return Triple(enrichmentInfo.augmentedMessages, enrichmentInfo.ragUsed, enrichmentInfo.ragContext)
     }
 
     /**
      * Обогащение промпта контекстом из базы знаний (с детальной информацией)
      *
+     * Гибридный пайплайн:
+     * 1. Генерация эмбеддинга через bge-m3
+     * 2. Гибридная фильтрация (первичная + умная)
+     * 3. Опциональный reranking через nomic-embed-text
+     * 4. Построение обогащенного промпта
+     *
      * @param userQuery запрос пользователя
      * @param originalMessages исходный список сообщений для LLM
+     * @param config конфигурация RAG пайплайна
      * @return RAGEnrichmentInfo с полной информацией о обогащении
      */
     suspend fun augmentPromptWithKnowledgeDetailed(
         userQuery: String,
-        originalMessages: List<Message>
+        originalMessages: List<Message>,
+        config: RAGConfig = RAGConfig()
     ): RAGEnrichmentInfo {
-        // Генерируем эмбеддинг для запроса
+        println("🚀 RAG Pipeline: фильтрация=${config.filteringConfig}, reranking=${config.useReranking}")
+
+        // Генерируем эмбеддинг для запроса (через bge-m3)
         val queryEmbedding = runCatching {
             embeddingsManager.generateQueryEmbedding(userQuery)
         }.getOrElse { e ->
@@ -63,12 +89,20 @@ class RAGManager(
                 ragUsed = false,
                 ragContext = null,
                 chunksCount = 0,
-                similarityScores = emptyList()
+                similarityScores = emptyList(),
+                filteringStats = null,
+                rerankingStats = null
             )
         }
 
-        // Ищем релевантные чанки (получаем детальную информацию)
-        val searchResults = vectorSearchManager.searchSimilarChunks(queryEmbedding)
+        // Ищем релевантные чанки с гибридной фильтрацией
+        val searchResultWithStats = vectorSearchManager.searchSimilarChunksWithStats(
+            queryEmbedding,
+            config.filteringConfig
+        )
+
+        val filteringStats = searchResultWithStats.stats
+        var searchResults = searchResultWithStats.results
 
         // Если релевантного контекста нет - возвращаем исходные сообщения
         if (searchResults.isEmpty()) {
@@ -78,31 +112,30 @@ class RAGManager(
                 ragUsed = false,
                 ragContext = null,
                 chunksCount = 0,
-                similarityScores = emptyList()
+                similarityScores = emptyList(),
+                filteringStats = filteringStats,
+                rerankingStats = null
             )
+        }
+
+        // Опциональный reranking
+        var rerankingStats: RerankingStats? = null
+        if (config.useReranking && searchResults.isNotEmpty()) {
+            println("🔄 Запуск reranking для ${searchResults.size} кандидатов")
+            val rerankingResult = rerankingManager.rerankResults(
+                query = userQuery,
+                candidates = searchResults,
+                topK = config.rerankingTopK
+            )
+            searchResults = rerankingResult.results
+            rerankingStats = rerankingResult.stats
         }
 
         // Формируем контекст из найденных чанков
         val relevantContext = searchResults.joinToString("\n\n") { it.chunk.content }
         val similarityScores = searchResults.map { it.similarity }
 
-        // Проверяем реальную релевантность по среднему similarity
-        val avgSimilarity = similarityScores.average()
-        val relevanceThreshold = 0.65 // Порог реальной релевантности
-
-        if (avgSimilarity < relevanceThreshold) {
-            println("⚠️ Найденные чанки имеют низкую релевантность (avg similarity: %.3f < %.2f)".format(avgSimilarity, relevanceThreshold))
-            println("ℹ️ Контекст из базы знаний не будет использован (нерелевантен для данного вопроса)")
-            return RAGEnrichmentInfo(
-                augmentedMessages = originalMessages,
-                ragUsed = false,
-                ragContext = null, // Не показываем нерелевантный контекст
-                chunksCount = 0,
-                similarityScores = emptyList()
-            )
-        }
-
-        println("✅ Найден релевантный контекст из базы знаний (${relevantContext.length} символов, ${searchResults.size} чанков, avg similarity: %.3f)".format(avgSimilarity))
+        println("✅ Финальный контекст: ${relevantContext.length} символов, ${searchResults.size} чанков")
 
         // Создаем обогащенный список сообщений
         val augmentedMessages = buildAugmentedMessages(originalMessages, relevantContext)
@@ -112,7 +145,9 @@ class RAGManager(
             ragUsed = true,
             ragContext = relevantContext,
             chunksCount = searchResults.size,
-            similarityScores = similarityScores
+            similarityScores = similarityScores,
+            filteringStats = filteringStats,
+            rerankingStats = rerankingStats
         )
     }
 

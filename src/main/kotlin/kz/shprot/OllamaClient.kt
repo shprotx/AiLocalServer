@@ -14,12 +14,16 @@ import kotlinx.serialization.json.Json
 /**
  * Клиент для работы с Ollama API (локальные эмбеддинги)
  *
- * Использует модель nomic-embed-text для генерации векторных представлений текста.
+ * Поддерживает разные модели:
+ * - bge-m3: для генерации эмбеддингов документов (векторизация)
+ * - nomic-embed-text: для reranking (переранжирование результатов)
+ *
  * API endpoint: http://localhost:11434/api/embeddings
  */
 class OllamaClient(
     private val baseUrl: String = "http://localhost:11434",
-    private val model: String = "nomic-embed-text"
+    private val embeddingModel: String = "bge-m3",  // Модель для генерации эмбеддингов
+    private val rerankingModel: String = "nomic-embed-text"  // Модель для reranking
 ) {
     private val client = HttpClient(CIO) {
         install(ContentNegotiation) {
@@ -34,15 +38,17 @@ class OllamaClient(
      * Генерирует эмбеддинг для текста
      *
      * @param text Текст для генерации эмбеддинга
+     * @param modelOverride Переопределить модель (опционально)
      * @return Вектор эмбеддинга (список чисел)
      */
-    suspend fun generateEmbedding(text: String): List<Double> {
+    suspend fun generateEmbedding(text: String, modelOverride: String? = null): List<Double> {
+        val modelToUse = modelOverride ?: embeddingModel
         return runCatching {
-            println("🔍 Запрос эмбеддинга для текста (${text.take(50)}...)")
+            println("🔍 Запрос эмбеддинга для текста (${text.take(50)}...) [model: $modelToUse]")
             val response = client.post("$baseUrl/api/embeddings") {
                 contentType(ContentType.Application.Json)
                 setBody(OllamaEmbeddingRequest(
-                    model = model,
+                    model = modelToUse,
                     prompt = text
                 ))
             }
@@ -50,6 +56,18 @@ class OllamaClient(
             println("📡 HTTP статус: ${response.status}")
             val rawBody = response.bodyAsText()
             println("📦 Сырой ответ от Ollama (первые 200 символов): ${rawBody.take(200)}")
+
+            // Проверяем HTTP статус
+            if (!response.status.isSuccess()) {
+                // Пытаемся распарсить как ошибку
+                val json = Json { ignoreUnknownKeys = true; isLenient = true }
+                val errorResponse = runCatching {
+                    json.decodeFromString<OllamaErrorResponse>(rawBody)
+                }.getOrNull()
+
+                val errorMessage = errorResponse?.error ?: "Unknown error (HTTP ${response.status.value})"
+                throw IllegalStateException("Ollama API error: $errorMessage")
+            }
 
             // Парсим JSON вручную для лучшей диагностики
             val json = Json { ignoreUnknownKeys = true; isLenient = true }
@@ -62,6 +80,16 @@ class OllamaClient(
             e.printStackTrace()
             throw e
         }
+    }
+
+    /**
+     * Генерирует эмбеддинг для reranking (используя rerankingModel)
+     *
+     * @param text Текст для генерации эмбеддинга
+     * @return Вектор эмбеддинга (список чисел)
+     */
+    suspend fun generateRerankingEmbedding(text: String): List<Double> {
+        return generateEmbedding(text, modelOverride = rerankingModel)
     }
 
     /**
@@ -103,4 +131,9 @@ data class OllamaEmbeddingRequest(
 @Serializable
 data class OllamaEmbeddingResponse(
     val embedding: List<Double>
+)
+
+@Serializable
+data class OllamaErrorResponse(
+    val error: String
 )
