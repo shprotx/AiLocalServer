@@ -164,7 +164,7 @@ data class RerankingStats(
  * Результат поиска с информацией о reranking
  */
 data class RerankingSearchResult(
-    val chunk: ChunkData,
+    val chunk: ChunkWithMetadata,
     val originalSimilarity: Double,  // Исходный скор от векторного поиска
     val rerankScore: Double          // Новый скор после reranking
 )

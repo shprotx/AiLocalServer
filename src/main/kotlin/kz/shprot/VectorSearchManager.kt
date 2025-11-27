@@ -71,8 +71,8 @@ class VectorSearchManager(
     ): SearchResultWithStats {
         val startTime = System.currentTimeMillis()
 
-        // Загружаем все чанки из БД
-        val allChunks = databaseManager.getAllChunks()
+        // Загружаем все чанки из БД с метаданными документов
+        val allChunks = databaseManager.getAllChunksWithMetadata()
 
         if (allChunks.isEmpty()) {
             println("⚠️ База знаний пуста")
@@ -276,10 +276,10 @@ class VectorSearchManager(
 }
 
 /**
- * Результат поиска: чанк + его сходство с запросом
+ * Результат поиска: чанк с метаданными + его сходство с запросом
  */
 data class SearchResult(
-    val chunk: ChunkData,
+    val chunk: ChunkWithMetadata,
     val similarity: Double
 )
 

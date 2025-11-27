@@ -345,6 +345,52 @@ class DatabaseManager(private val dbPath: String = "chats.db") {
     }
 
     /**
+     * Получение всех чанков с метаданными документов (для RAG с источниками)
+     */
+    fun getAllChunksWithMetadata(): List<ChunkWithMetadata> {
+        val chunks = mutableListOf<ChunkWithMetadata>()
+        val statement = connection?.createStatement() ?: return chunks
+        val resultSet = statement.executeQuery("""
+            SELECT
+                c.id,
+                c.document_id,
+                c.content,
+                c.chunk_index,
+                c.embedding,
+                d.filename,
+                d.file_type
+            FROM chunks c
+            INNER JOIN documents d ON c.document_id = d.id
+            ORDER BY c.document_id, c.chunk_index
+        """)
+
+        while (resultSet.next()) {
+            chunks.add(resultSet.toChunkWithMetadata())
+        }
+
+        println("📚 Загружено чанков с метаданными: ${chunks.size}")
+        return chunks
+    }
+
+    /**
+     * Получение документа по ID
+     */
+    fun getDocument(documentId: Int): DocumentData? {
+        val statement = connection?.prepareStatement(
+            "SELECT id, filename, file_type, upload_date, total_chunks FROM documents WHERE id = ?"
+        ) ?: return null
+
+        statement.setInt(1, documentId)
+        val resultSet = statement.executeQuery()
+
+        return if (resultSet.next()) {
+            resultSet.toDocumentData()
+        } else {
+            null
+        }
+    }
+
+    /**
      * Получение всех документов
      */
     fun getAllDocuments(): List<DocumentData> {
@@ -446,6 +492,16 @@ class DatabaseManager(private val dbPath: String = "chats.db") {
         totalChunks = getInt("total_chunks")
     )
 
+    private fun ResultSet.toChunkWithMetadata() = ChunkWithMetadata(
+        id = getInt("id"),
+        documentId = getInt("document_id"),
+        content = getString("content"),
+        chunkIndex = getInt("chunk_index"),
+        embedding = parseEmbedding(getString("embedding")),
+        filename = getString("filename"),
+        fileType = getString("file_type")
+    )
+
     /**
      * Парсинг эмбеддинга из JSON строки
      */
@@ -497,4 +553,17 @@ data class ChunkData(
     val content: String,
     val chunkIndex: Int,
     val embedding: List<Double>
+)
+
+/**
+ * Модель данных для чанка с метаданными документа (для RAG с источниками)
+ */
+data class ChunkWithMetadata(
+    val id: Int,
+    val documentId: Int,
+    val content: String,
+    val chunkIndex: Int,
+    val embedding: List<Double>,
+    val filename: String,
+    val fileType: String
 )

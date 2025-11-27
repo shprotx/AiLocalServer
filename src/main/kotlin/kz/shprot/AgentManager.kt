@@ -159,6 +159,13 @@ class AgentManager(
         history: List<Message>,
         previousResponses: List<AgentResponse>
     ): AgentResponse {
+        println("📋 AGENT ${agent.role} - История для консультации:")
+        println("   Количество сообщений в history: ${history.size}")
+        history.forEachIndexed { index, msg ->
+            val preview = msg.text.take(100).replace("\n", " ")
+            println("   [$index] role=${msg.role}, text_preview='$preview...'")
+        }
+
         val messages = buildList {
             // System prompt специалиста
             add(Message(role = "system", text = agent.systemPrompt))
@@ -254,7 +261,8 @@ class AgentManager(
         temperature: Double = 0.6,
         compressContext: Boolean = false,
         compressSystemPrompt: Boolean = false,
-        ragContext: String? = null
+        ragContext: String? = null,
+        enrichedMessages: List<Message>? = null  // Обогащенные RAG сообщения
     ): MultiAgentResponse {
         // Проверяем явный запрос на создание специалистов
         val explicitRequest = detectExplicitAgentRequest(userMessage)
@@ -300,9 +308,27 @@ class AgentManager(
 
         // Последовательная консультация
         val agentResponses = mutableListOf<AgentResponse>()
+        // Используем enrichedMessages если доступны, иначе history
+        val messagesForAgents = enrichedMessages?.filter { it.role != "user" } ?: history
+
+        println("=== Подготовка сообщений для агентов ===")
+        println("enrichedMessages != null: ${enrichedMessages != null}")
+        if (enrichedMessages != null) {
+            println("enrichedMessages.size: ${enrichedMessages.size}")
+            enrichedMessages.forEachIndexed { index, msg ->
+                val preview = msg.text.take(80).replace("\n", " ")
+                println("  enrichedMessages[$index]: role=${msg.role}, preview='$preview...'")
+            }
+        }
+        println("messagesForAgents.size: ${messagesForAgents.size}")
+        messagesForAgents.forEachIndexed { index, msg ->
+            val preview = msg.text.take(80).replace("\n", " ")
+            println("  messagesForAgents[$index]: role=${msg.role}, preview='$preview...'")
+        }
+
         for (agent in agents) {
             println("Consulting ${agent.role}...")
-            val response = consultAgent(agent, userMessage, history, agentResponses)
+            val response = consultAgent(agent, userMessage, messagesForAgents, agentResponses)
             agentResponses.add(response)
         }
 

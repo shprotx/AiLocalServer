@@ -2012,7 +2012,79 @@
             return toolsBlock;
         }
 
-        function addMessage(text, isUser, title = null, isMultiAgent = false, agents = null, tokenUsage = null, usedTools = null, ragUsed = false, ragContext = null) {
+        function createSourcesBlock(ragSources) {
+            if (!ragSources || ragSources.length === 0) return null;
+
+            const sourcesBlock = document.createElement('div');
+            sourcesBlock.style.marginTop = '8px';
+            sourcesBlock.style.padding = '8px 12px';
+            sourcesBlock.style.backgroundColor = '#FFF3E0';
+            sourcesBlock.style.borderLeft = '3px solid #FF9800';
+            sourcesBlock.style.borderRadius = '4px';
+            sourcesBlock.style.fontSize = '13px';
+
+            const sourcesLabel = document.createElement('div');
+            sourcesLabel.style.fontWeight = '600';
+            sourcesLabel.style.color = '#E65100';
+            sourcesLabel.style.marginBottom = '6px';
+            sourcesLabel.textContent = '📄 Источники:';
+            sourcesBlock.appendChild(sourcesLabel);
+
+            const sourcesList = document.createElement('div');
+            sourcesList.style.display = 'flex';
+            sourcesList.style.flexDirection = 'column';
+            sourcesList.style.gap = '4px';
+
+            ragSources.forEach(source => {
+                const sourceLink = document.createElement('a');
+                sourceLink.href = `/api/documents/${source.documentId}`;
+                sourceLink.target = '_blank';
+                sourceLink.style.display = 'inline-block';
+                sourceLink.style.padding = '4px 10px';
+                sourceLink.style.backgroundColor = '#FFE0B2';
+                sourceLink.style.color = '#E65100';
+                sourceLink.style.borderRadius = '4px';
+                sourceLink.style.fontSize = '12px';
+                sourceLink.style.fontWeight = '500';
+                sourceLink.style.textDecoration = 'none';
+                sourceLink.style.cursor = 'pointer';
+                sourceLink.style.transition = 'background-color 0.2s';
+                sourceLink.textContent = `📎 ${source.filename}`;
+                sourceLink.title = `Документ ID: ${source.documentId}, Тип: ${source.fileType}`;
+
+                // Hover эффект
+                sourceLink.addEventListener('mouseenter', () => {
+                    sourceLink.style.backgroundColor = '#FFCC80';
+                });
+                sourceLink.addEventListener('mouseleave', () => {
+                    sourceLink.style.backgroundColor = '#FFE0B2';
+                });
+
+                // Обработка клика - показываем информацию о документе
+                sourceLink.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    try {
+                        const response = await fetch(`/api/documents/${source.documentId}`);
+                        if (response.ok) {
+                            const docInfo = await response.json();
+                            alert(`Документ: ${docInfo.filename}\nТип: ${docInfo.fileType}\nID: ${docInfo.id}\nЧанков: ${docInfo.totalChunks}\nДата загрузки: ${new Date(docInfo.uploadDate).toLocaleString('ru-RU')}`);
+                        } else {
+                            alert('Документ не найден или недоступен');
+                        }
+                    } catch (error) {
+                        console.error('Ошибка при получении документа:', error);
+                        alert('Ошибка при получении информации о документе');
+                    }
+                });
+
+                sourcesList.appendChild(sourceLink);
+            });
+
+            sourcesBlock.appendChild(sourcesList);
+            return sourcesBlock;
+        }
+
+        function addMessage(text, isUser, title = null, isMultiAgent = false, agents = null, tokenUsage = null, usedTools = null, ragUsed = false, ragContext = null, ragSources = null) {
             if (isUser) {
                 const messageDiv = document.createElement('div');
                 messageDiv.className = 'message user-message';
@@ -2069,6 +2141,12 @@
                     synthesisDiv.appendChild(toolsBlock);
                 }
 
+                // Добавляем блок с источниками
+                const sourcesBlock = createSourcesBlock(ragSources);
+                if (sourcesBlock) {
+                    synthesisDiv.appendChild(sourcesBlock);
+                }
+
                 addCopyButtons(synthesisDiv);
                 container.appendChild(synthesisDiv);
 
@@ -2113,6 +2191,12 @@
                 const toolsBlock = createUsedToolsBlock(usedTools);
                 if (toolsBlock) {
                     messageDiv.appendChild(toolsBlock);
+                }
+
+                // Добавляем блок с источниками
+                const sourcesBlock = createSourcesBlock(ragSources);
+                if (sourcesBlock) {
+                    messageDiv.appendChild(sourcesBlock);
                 }
 
                 addCopyButtons(messageDiv);
@@ -2279,7 +2363,7 @@
 
                 const data = await response.json();
                 chatContainer.removeChild(loadingDiv);
-                addMessage(data.response, false, data.title, data.isMultiAgent, data.agents, data.tokenUsage, data.usedTools, data.ragUsed, data.ragContext);
+                addMessage(data.response, false, data.title, data.isMultiAgent, data.agents, data.tokenUsage, data.usedTools, data.ragUsed, data.ragContext, data.ragSources);
 
                 updateMessageCount();
 

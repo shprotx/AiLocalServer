@@ -29,7 +29,8 @@ data class ChatResponse(
     // Новые поля для детальной статистики RAG
     val ragChunksCount: Int? = null,           // Количество использованных чанков
     val ragFilteringStats: RAGFilteringStatsData? = null,  // Статистика фильтрации
-    val ragRerankingStats: RAGRerankingStatsData? = null   // Статистика reranking
+    val ragRerankingStats: RAGRerankingStatsData? = null,   // Статистика reranking
+    val ragSources: List<SourceInfoData>? = null  // Список источников (документов)
 )
 
 @Serializable
@@ -268,4 +269,14 @@ data class RAGRerankingStatsData(
     val avgScoreAfter: Double,
     val scoreImprovement: Double,
     val processingTimeMs: Long
+)
+
+/**
+ * Информация об источнике (документе) использованном в RAG
+ */
+@Serializable
+data class SourceInfoData(
+    val documentId: Int,
+    val filename: String,
+    val fileType: String
 )

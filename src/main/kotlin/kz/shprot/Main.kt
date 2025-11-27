@@ -94,6 +94,20 @@ fun toRerankingStatsData(stats: RerankingStats?): RAGRerankingStatsData? {
     )
 }
 
+/**
+ * Helper функция для конвертации списка SourceInfo в API модель
+ */
+fun toSourcesData(sources: List<RAGManager.SourceInfo>?): List<SourceInfoData>? {
+    if (sources.isNullOrEmpty()) return null
+    return sources.map { source ->
+        SourceInfoData(
+            documentId = source.documentId,
+            filename = source.filename,
+            fileType = source.fileType
+        )
+    }
+}
+
 fun main() {
     val apiKey = System.getenv("YANDEX_API_KEY")
     val folderId = System.getenv("YANDEX_FOLDER_ID")
@@ -409,7 +423,8 @@ fun main() {
                         ragContext = ragEnrichmentInfo?.ragContext,
                         ragChunksCount = ragEnrichmentInfo?.chunksCount,
                         ragFilteringStats = toFilteringStatsData(ragEnrichmentInfo?.filteringStats),
-                        ragRerankingStats = toRerankingStatsData(ragEnrichmentInfo?.rerankingStats)
+                        ragRerankingStats = toRerankingStatsData(ragEnrichmentInfo?.rerankingStats),
+                        ragSources = toSourcesData(ragEnrichmentInfo?.sources)
                     )
 
                     call.respond(mcpResponse)
@@ -419,8 +434,19 @@ fun main() {
                 println("=== MCP tool не требуется, используем multi-agent систему ===")
 
                 // Обрабатываем сообщение через multi-agent систему
-                // ВАЖНО: Используем baseMessages (уже обогащенные RAG контекстом)
+                // ВАЖНО: Передаем baseMessages (уже обогащенные RAG контекстом)
                 val historyForAgents = baseMessages.filter { it.role != "user" }
+
+                println("=== Вызов AgentManager.processMessage() ===")
+                println("baseMessages.size: ${baseMessages.size}")
+                baseMessages.forEachIndexed { index, msg ->
+                    val preview = msg.text.take(80).replace("\n", " ")
+                    println("  baseMessages[$index]: role=${msg.role}, preview='$preview...'")
+                }
+                println("historyForAgents.size: ${historyForAgents.size}")
+                println("ragEnrichmentInfo?.ragUsed: ${ragEnrichmentInfo?.ragUsed}")
+                println("Передается enrichedMessages: ${if (ragEnrichmentInfo?.ragUsed == true) "baseMessages" else "null"}")
+
                 val multiAgentResponse = agentManager.processMessage(
                     chatId = request.chatId,
                     userMessage = request.message,
@@ -428,7 +454,8 @@ fun main() {
                     temperature = request.temperature ?: 0.6,
                     compressContext = request.compressContext,
                     compressSystemPrompt = request.compressSystemPrompt,
-                    ragContext = ragEnrichmentInfo?.ragContext
+                    ragContext = ragEnrichmentInfo?.ragContext,
+                    enrichedMessages = if (ragEnrichmentInfo?.ragUsed == true) baseMessages else null
                 )
 
                 // Конвертируем Usage в TokenUsageInfo
@@ -479,7 +506,8 @@ fun main() {
                         ragContext = ragEnrichmentInfo?.ragContext,
                         ragChunksCount = ragEnrichmentInfo?.chunksCount,
                         ragFilteringStats = toFilteringStatsData(ragEnrichmentInfo?.filteringStats),
-                        ragRerankingStats = toRerankingStatsData(ragEnrichmentInfo?.rerankingStats)
+                        ragRerankingStats = toRerankingStatsData(ragEnrichmentInfo?.rerankingStats),
+                        ragSources = toSourcesData(ragEnrichmentInfo?.sources)
                     )
                 } else {
                     ChatResponse(
@@ -493,7 +521,8 @@ fun main() {
                         ragContext = ragEnrichmentInfo?.ragContext,
                         ragChunksCount = ragEnrichmentInfo?.chunksCount,
                         ragFilteringStats = toFilteringStatsData(ragEnrichmentInfo?.filteringStats),
-                        ragRerankingStats = toRerankingStatsData(ragEnrichmentInfo?.rerankingStats)
+                        ragRerankingStats = toRerankingStatsData(ragEnrichmentInfo?.rerankingStats),
+                        ragSources = toSourcesData(ragEnrichmentInfo?.sources)
                     )
                 }
 
@@ -860,6 +889,37 @@ fun main() {
                     ))
                 } catch (e: Exception) {
                     println("❌ Ошибка при получении списка документов: ${e.message}")
+                    call.respond(
+                        HttpStatusCode.InternalServerError,
+                        ErrorResponse(error = e.message ?: "Unknown error")
+                    )
+                }
+            }
+
+            // Получение информации о конкретном документе по ID
+            get("/api/documents/{id}") {
+                try {
+                    val documentId = call.parameters["id"]?.toIntOrNull()
+                    if (documentId == null) {
+                        call.respond(HttpStatusCode.BadRequest, ErrorResponse(error = "Invalid document ID"))
+                        return@get
+                    }
+
+                    val document = db.getDocument(documentId)
+                    if (document == null) {
+                        call.respond(HttpStatusCode.NotFound, ErrorResponse(error = "Document not found"))
+                        return@get
+                    }
+
+                    call.respond(DocumentInfo(
+                        id = document.id,
+                        filename = document.filename,
+                        fileType = document.fileType,
+                        uploadDate = document.uploadDate,
+                        totalChunks = document.totalChunks
+                    ))
+                } catch (e: Exception) {
+                    println("❌ Ошибка при получении документа: ${e.message}")
                     call.respond(
                         HttpStatusCode.InternalServerError,
                         ErrorResponse(error = e.message ?: "Unknown error")
