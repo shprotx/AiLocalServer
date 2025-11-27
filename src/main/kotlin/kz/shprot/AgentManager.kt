@@ -162,8 +162,18 @@ class AgentManager(
         println("📋 AGENT ${agent.role} - История для консультации:")
         println("   Количество сообщений в history: ${history.size}")
         history.forEachIndexed { index, msg ->
-            val preview = msg.text.take(100).replace("\n", " ")
-            println("   [$index] role=${msg.role}, text_preview='$preview...'")
+            if (msg.role == "system") {
+                val hasRAGContext = msg.text.contains("📚 КОНТЕКСТ ИЗ БАЗЫ ЗНАНИЙ")
+                println("   [$index] role=${msg.role}, length=${msg.text.length}, hasRAGContext=$hasRAGContext")
+                if (hasRAGContext) {
+                    println("        ✅ RAG контекст ПРИСУТСТВУЕТ в system message!")
+                } else {
+                    println("        ❌ RAG контекста НЕТ в system message!")
+                }
+            } else {
+                val preview = msg.text.take(100).replace("\n", " ")
+                println("   [$index] role=${msg.role}, text_preview='$preview...'")
+            }
         }
 
         val messages = buildList {
@@ -316,14 +326,24 @@ class AgentManager(
         if (enrichedMessages != null) {
             println("enrichedMessages.size: ${enrichedMessages.size}")
             enrichedMessages.forEachIndexed { index, msg ->
-                val preview = msg.text.take(80).replace("\n", " ")
-                println("  enrichedMessages[$index]: role=${msg.role}, preview='$preview...'")
+                if (msg.role == "system") {
+                    val hasRAGContext = msg.text.contains("📚 КОНТЕКСТ ИЗ БАЗЫ ЗНАНИЙ")
+                    println("  enrichedMessages[$index]: role=${msg.role}, length=${msg.text.length}, hasRAGContext=$hasRAGContext")
+                } else {
+                    val preview = msg.text.take(80).replace("\n", " ")
+                    println("  enrichedMessages[$index]: role=${msg.role}, preview='$preview...'")
+                }
             }
         }
         println("messagesForAgents.size: ${messagesForAgents.size}")
         messagesForAgents.forEachIndexed { index, msg ->
-            val preview = msg.text.take(80).replace("\n", " ")
-            println("  messagesForAgents[$index]: role=${msg.role}, preview='$preview...'")
+            if (msg.role == "system") {
+                val hasRAGContext = msg.text.contains("📚 КОНТЕКСТ ИЗ БАЗЫ ЗНАНИЙ")
+                println("  messagesForAgents[$index]: role=${msg.role}, length=${msg.text.length}, hasRAGContext=$hasRAGContext")
+            } else {
+                val preview = msg.text.take(80).replace("\n", " ")
+                println("  messagesForAgents[$index]: role=${msg.role}, preview='$preview...'")
+            }
         }
 
         for (agent in agents) {

@@ -178,8 +178,9 @@ fun main() {
         systemChatId = 1
     )
 
-    println("📅 Запускаем планировщик Daily Summary...")
-    dailySummaryScheduler.start(schedulerScope)
+    // TODO: Временно отключено - потом включить обратно
+    // println("📅 Запускаем планировщик Daily Summary...")
+    // dailySummaryScheduler.start(schedulerScope)
 
     // MCP Orchestrator для автоматической композиции инструментов
     val mcpOrchestrator = McpOrchestrator(
@@ -431,32 +432,41 @@ fun main() {
                     return@post
                 }
 
-                println("=== MCP tool не требуется, используем multi-agent систему ===")
+                println("=== MCP tool не требуется ===")
 
-                // Обрабатываем сообщение через multi-agent систему
-                // ВАЖНО: Передаем baseMessages (уже обогащенные RAG контекстом)
-                val historyForAgents = baseMessages.filter { it.role != "user" }
+                // КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Если RAG нашел контекст - отвечаем НАПРЯМУЮ без агентов!
+                val multiAgentResponse = if (ragEnrichmentInfo?.ragUsed == true && ragEnrichmentInfo.chunksCount > 0) {
+                    println("✅ RAG нашел ${ragEnrichmentInfo.chunksCount} чанков - отвечаем НАПРЯМУЮ БЕЗ агентов")
 
-                println("=== Вызов AgentManager.processMessage() ===")
-                println("baseMessages.size: ${baseMessages.size}")
-                baseMessages.forEachIndexed { index, msg ->
-                    val preview = msg.text.take(80).replace("\n", " ")
-                    println("  baseMessages[$index]: role=${msg.role}, preview='$preview...'")
+                    // Прямой ответ от LLM с RAG контекстом
+                    val directResponse = llmClient.sendMessageWithHistoryAndUsage(
+                        messages = baseMessages,
+                        temperature = request.temperature ?: 0.6
+                    )
+
+                    // Упаковываем в MultiAgentResponse формат
+                    MultiAgentResponse(
+                        isMultiAgent = false,
+                        agentResponses = emptyList(),
+                        synthesis = directResponse.response.message,
+                        title = directResponse.response.title,
+                        totalUsage = directResponse.usage
+                    )
+                } else {
+                    println("=== RAG не нашел контекст, используем multi-agent систему ===")
+                    val historyForAgents = baseMessages.filter { it.role != "user" }
+
+                    agentManager.processMessage(
+                        chatId = request.chatId,
+                        userMessage = request.message,
+                        history = historyForAgents,
+                        temperature = request.temperature ?: 0.6,
+                        compressContext = request.compressContext,
+                        compressSystemPrompt = request.compressSystemPrompt,
+                        ragContext = ragEnrichmentInfo?.ragContext,
+                        enrichedMessages = if (ragEnrichmentInfo?.ragUsed == true) baseMessages else null
+                    )
                 }
-                println("historyForAgents.size: ${historyForAgents.size}")
-                println("ragEnrichmentInfo?.ragUsed: ${ragEnrichmentInfo?.ragUsed}")
-                println("Передается enrichedMessages: ${if (ragEnrichmentInfo?.ragUsed == true) "baseMessages" else "null"}")
-
-                val multiAgentResponse = agentManager.processMessage(
-                    chatId = request.chatId,
-                    userMessage = request.message,
-                    history = historyForAgents,
-                    temperature = request.temperature ?: 0.6,
-                    compressContext = request.compressContext,
-                    compressSystemPrompt = request.compressSystemPrompt,
-                    ragContext = ragEnrichmentInfo?.ragContext,
-                    enrichedMessages = if (ragEnrichmentInfo?.ragUsed == true) baseMessages else null
-                )
 
                 // Конвертируем Usage в TokenUsageInfo
                 val tokenInfo = usageToTokenInfo(multiAgentResponse.totalUsage, modelType)
