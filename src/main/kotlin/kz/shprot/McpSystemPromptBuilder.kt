@@ -1,6 +1,8 @@
 package kz.shprot
 
 import kotlinx.serialization.json.*
+import kz.shprot.tools.ToolRegistry
+import kz.shprot.tools.ProjectManager
 
 /**
  * Помощник для построения system prompt с описанием доступных MCP инструментов
@@ -8,9 +10,27 @@ import kotlinx.serialization.json.*
 object McpSystemPromptBuilder {
 
     /**
-     * Создает system prompt с описанием MCP инструментов
+     * Создает system prompt с описанием MCP инструментов и Tool Registry инструментов
      */
-    fun buildSystemPrompt(mcpManager: SimpleMcpManager): String {
+    fun buildSystemPrompt(
+        mcpManager: SimpleMcpManager,
+        toolRegistry: ToolRegistry? = null,
+        projectManager: ProjectManager? = null
+    ): String {
+        val mcpTools = mcpManager.getToolsForFunctionCalling()
+        val registryToolsPrompt = if (toolRegistry != null && projectManager?.getCurrentProject() != null) {
+            buildToolRegistryDescription(toolRegistry, projectManager)
+        } else {
+            ""
+        }
+
+        return buildCombinedPrompt(mcpTools, registryToolsPrompt, projectManager)
+    }
+
+    /**
+     * Создает system prompt только с описанием MCP инструментов (для обратной совместимости)
+     */
+    fun buildSystemPromptMcpOnly(mcpManager: SimpleMcpManager): String {
         val tools = mcpManager.getToolsForFunctionCalling()
 
         if (tools.isEmpty()) {
@@ -215,4 +235,165 @@ ${if (hasTelegramTools) TELEGRAM_INSTRUCTIONS else ""}
 
 **НЕ ИСПОЛЬЗУЙ название канала напрямую в tg_dialog** - это вызовет ошибку!
     """
+
+    /**
+     * Генерирует описание Tool Registry инструментов
+     */
+    private fun buildToolRegistryDescription(toolRegistry: ToolRegistry, projectManager: ProjectManager): String {
+        val tools = toolRegistry.getAll()
+        if (tools.isEmpty()) return ""
+
+        val currentProject = projectManager.getCurrentProject()
+        val projectInfo = if (currentProject != null) {
+            """
+## Текущий проект
+
+**Название:** ${currentProject.name}
+**Путь:** ${currentProject.rootPath}
+**Тип:** ${currentProject.type.name}
+${if (projectManager.getGitBranch() != null) "**Git ветка:** ${projectManager.getGitBranch()}" else ""}
+
+Все пути к файлам относительны корня проекта (${currentProject.rootPath}).
+            """.trimIndent()
+        } else ""
+
+        return buildString {
+            appendLine("## Инструменты для работы с проектом")
+            appendLine()
+            if (projectInfo.isNotBlank()) {
+                appendLine(projectInfo)
+                appendLine()
+            }
+
+            // Группируем по категориям
+            val categories = toolRegistry.getCategories()
+
+            if (categories.isNotEmpty()) {
+                for (category in categories) {
+                    val categoryTools = toolRegistry.getByCategory(category)
+                    if (categoryTools.isEmpty()) continue
+
+                    appendLine("### $category")
+                    appendLine()
+
+                    for (tool in categoryTools) {
+                        appendLine("#### ${tool.name}")
+                        appendLine(tool.description.trim())
+                        appendLine()
+                        appendLine("**Параметры:**")
+
+                        tool.parametersSchema.properties.forEach { (paramName, param) ->
+                            val required = if (paramName in tool.parametersSchema.required) " (обязательный)" else ""
+                            appendLine("- `$paramName` (${param.type})$required: ${param.description}")
+                        }
+                        appendLine()
+                    }
+                }
+            } else {
+                // Если категорий нет - просто перечисляем все инструменты
+                for (tool in tools) {
+                    appendLine("### ${tool.name}")
+                    appendLine(tool.description.trim())
+                    appendLine()
+                    appendLine("**Параметры:**")
+
+                    tool.parametersSchema.properties.forEach { (paramName, param) ->
+                        val required = if (paramName in tool.parametersSchema.required) " (обязательный)" else ""
+                        appendLine("- `$paramName` (${param.type})$required: ${param.description}")
+                    }
+                    appendLine()
+                }
+            }
+        }
+    }
+
+    /**
+     * Создает комбинированный prompt с MCP и Tool Registry инструментами
+     */
+    private fun buildCombinedPrompt(
+        mcpTools: List<JsonObject>,
+        registryToolsPrompt: String,
+        projectManager: ProjectManager?
+    ): String {
+        val mcpToolsDescription = if (mcpTools.isNotEmpty()) {
+            "## MCP Инструменты\n\n" + buildToolsDescription(mcpTools)
+        } else ""
+
+        val hasTelegramTools = mcpTools.any {
+            val name = it["function"]?.jsonObject?.get("name")?.jsonPrimitive?.content ?: ""
+            name.startsWith("tg_")
+        }
+
+        val hasProjectTools = registryToolsPrompt.isNotBlank()
+
+        // Если нет ни MCP, ни Registry инструментов - возвращаем базовый промпт
+        if (mcpTools.isEmpty() && !hasProjectTools) {
+            return BASE_PROMPT
+        }
+
+        return """
+$BASE_PROMPT
+
+${if (hasProjectTools) registryToolsPrompt else ""}
+
+${if (mcpToolsDescription.isNotBlank()) mcpToolsDescription else ""}
+
+${if (hasTelegramTools) TELEGRAM_INSTRUCTIONS else ""}
+
+## Правила использования инструментов
+
+**ВАЖНО:** Ты РЕАЛЬНО можешь изменять файлы в проекте! Инструменты edit_file, write_file, grep - работают!
+
+Если для ответа на вопрос пользователя нужно использовать инструменты, верни в поле "tool_calls" массив объектов:
+- "name": название инструмента
+- "arguments": объект с аргументами
+
+### КРИТИЧЕСКИ ВАЖНО: Алгоритм работы с файлами
+
+**НИКОГДА не угадывай путь к файлу!** Всегда сначала найди его:
+
+1. **Найди файл** через `find_file` (по имени) или `grep` (по содержимому)
+2. **Прочитай файл** через `read_file` чтобы увидеть ТОЧНЫЙ текст
+3. **Отредактируй** через `edit_file` используя ТОЧНУЮ строку из файла
+4. Если файл не найден - попробуй другой запрос к find_file
+
+### Примеры:
+
+**Шаг 1 - Найти файл по имени (ОБЯЗАТЕЛЬНО первый шаг!):**
+{
+  "title": "Ищу файл",
+  "message": "Ищу файл с авторизацией",
+  "tool_calls": [
+    {"name": "find_file", "arguments": {"query": "AuthScreen"}}
+  ]
+}
+
+**Шаг 2 - Прочитать найденный файл:**
+{
+  "title": "Читаю файл",
+  "message": "Читаю содержимое файла",
+  "tool_calls": [
+    {"name": "read_file", "arguments": {"path": "app/src/main/java/com/example/auth/AuthScreen.kt"}}
+  ]
+}
+
+**Шаг 3 - Редактировать с ТОЧНОЙ строкой из файла:**
+{
+  "title": "Меняю цвет",
+  "message": "Меняю цвет кнопки",
+  "tool_calls": [
+    {"name": "edit_file", "arguments": {"path": "app/src/main/java/com/example/auth/AuthScreen.kt", "old_string": "color = Color.Blue", "new_string": "color = Color.Green"}}
+  ]
+}
+
+**Поиск кода по содержимому:**
+{
+  "title": "Ищу код",
+  "message": "Ищу где используется синий цвет",
+  "tool_calls": [
+    {"name": "grep", "arguments": {"pattern": "Color\\.Blue|#2196F3", "glob": "**/*.kt"}}
+  ]
+}
+        """.trimIndent()
+    }
 }

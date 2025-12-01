@@ -429,68 +429,186 @@ fun main() {
                     println("ℹ️ RAG отключен пользователем (useRAG=false)")
                 }
 
-                // 🔧 MCP ПОДДЕРЖКА: Сначала пробуем обработать через MCP инструменты
+                // 🔧 TOOLS ПОДДЕРЖКА: Сначала пробуем обработать через инструменты (MCP + Tool Registry)
                 // Это позволяет быстро отвечать на простые запросы с использованием инструментов
-                val mcpSystemPrompt = McpSystemPromptBuilder.buildSystemPrompt(mcpManager)
-                val messagesForMcp = listOf(Message("system", mcpSystemPrompt)) + baseMessages.drop(1)
+                val combinedSystemPrompt = McpSystemPromptBuilder.buildSystemPrompt(
+                    mcpManager = mcpManager,
+                    toolRegistry = toolRegistry,
+                    projectManager = projectManager
+                )
+                val messagesForTools = listOf(Message("system", combinedSystemPrompt)) + baseMessages.drop(1)
 
-                println("=== Проверка на MCP tool_calls ===")
-                val mcpCheckResponse = llmClient.sendMessageWithHistoryAndUsage(
-                    messages = messagesForMcp,
+                println("=== Проверка на tool_calls (MCP + Tool Registry) ===")
+                val toolCheckResponse = llmClient.sendMessageWithHistoryAndUsage(
+                    messages = messagesForTools,
                     temperature = request.temperature ?: 0.6
                 )
 
                 // Если LLM запросил вызов инструментов - обрабатываем их
-                if (!mcpCheckResponse.response.tool_calls.isNullOrEmpty()) {
-                    println("🔧 Обнаружены tool_calls (${mcpCheckResponse.response.tool_calls!!.size}), обрабатываем через MCP")
+                if (!toolCheckResponse.response.tool_calls.isNullOrEmpty()) {
+                    val toolCalls = toolCheckResponse.response.tool_calls!!
+                    println("🔧 Обнаружены tool_calls (${toolCalls.size})")
 
-                    val toolCallResult = mcpToolHandler.handleToolCalls(
-                        llmResponse = mcpCheckResponse.response,
-                        conversationHistory = messagesForMcp,
-                        temperature = request.temperature ?: 0.6
-                    )
+                    // Определяем какие tool_calls для MCP, какие для Tool Registry
+                    val mcpToolNames = mcpManager.getToolsForFunctionCalling().mapNotNull { toolObj: kotlinx.serialization.json.JsonObject ->
+                        toolObj["function"]?.let { func ->
+                            (func as? kotlinx.serialization.json.JsonObject)?.get("name")?.let { nameEl ->
+                                (nameEl as? kotlinx.serialization.json.JsonPrimitive)?.content
+                            }
+                        }
+                    }.toSet()
 
-                    // Конвертируем Usage в TokenUsageInfo
-                    val tokenInfo = usageToTokenInfo(mcpCheckResponse.usage, modelType)
+                    val registryToolNames = toolRegistry.getAll().map { tool -> tool.name }.toSet()
 
-                    // Вычисляем использование контекстного окна
-                    val contextWindowUsage = mcpCheckResponse.usage?.let { usage ->
-                        val inputTokens = usage.inputTextTokens.toIntOrNull() ?: 0
-                        val isActuallyCompressed = request.compressContext &&
-                            chatHistory.getCompressionInfo(request.chatId) != null
-                        chatHistory.calculateContextWindowUsage(
-                            chatId = request.chatId,
-                            currentRequestTokens = inputTokens,
-                            isCompressed = isActuallyCompressed
-                        )
+                    val mcpCalls = toolCalls.filter { it.name in mcpToolNames }
+                    val registryCalls = toolCalls.filter { it.name in registryToolNames }
+
+                    println("   MCP tools: ${mcpCalls.map { it.name }}")
+                    println("   Registry tools: ${registryCalls.map { it.name }}")
+
+                    // Обрабатываем Tool Registry инструменты с итеративным циклом
+                    if (registryCalls.isNotEmpty()) {
+                        val usedTools = mutableListOf<String>()
+                        var currentMessages = messagesForTools.toMutableList()
+                        var currentResponse = toolCheckResponse
+                        var currentRegistryCalls = registryCalls
+                        var iteration = 0
+                        val maxIterations = 10 // Защита от бесконечного цикла
+
+                        while (currentRegistryCalls.isNotEmpty() && iteration < maxIterations) {
+                            iteration++
+                            println("🔄 Tool Registry итерация $iteration")
+
+                            val iterationResults = mutableListOf<String>()
+
+                            for (call in currentRegistryCalls) {
+                                println("🔧 Выполняю Tool Registry: ${call.name}")
+                                usedTools.add(call.name)
+
+                                val arguments = kotlinx.serialization.json.buildJsonObject {
+                                    call.arguments.forEach { (key, value) ->
+                                        put(key, value)
+                                    }
+                                }
+
+                                val result = toolExecutor.execute(call.name, arguments)
+                                iterationResults.add(toolExecutor.formatResultForLLM(call.name, result))
+                            }
+
+                            // Добавляем результаты в историю и запрашиваем следующее действие
+                            val toolResultsMessage = iterationResults.joinToString("\n\n---\n\n")
+                            currentMessages.add(Message("assistant", currentResponse.response.message))
+                            currentMessages.add(Message("system", "Результаты выполнения инструментов:\n\n$toolResultsMessage\n\nПродолжай выполнять задачу. Если нужны ещё инструменты - вызови их. Если задача выполнена - сформируй финальный ответ пользователю."))
+
+                            // Запрашиваем следующее действие от LLM
+                            val nextResponse = llmClient.sendMessageWithHistoryAndUsage(
+                                messages = currentMessages,
+                                temperature = request.temperature ?: 0.6
+                            )
+                            currentResponse = nextResponse
+
+                            // Проверяем есть ли новые tool_calls
+                            val nextToolCalls = nextResponse.response.tool_calls ?: emptyList()
+                            currentRegistryCalls = nextToolCalls.filter { it.name in registryToolNames }
+
+                            println("   Следующие tool_calls: ${nextToolCalls.map { it.name }}")
+                            println("   Registry calls: ${currentRegistryCalls.map { it.name }}")
+
+                            // Если нет tool_calls - это финальный ответ
+                            if (nextToolCalls.isEmpty()) {
+                                break
+                            }
+                        }
+
+                        if (iteration >= maxIterations) {
+                            println("⚠️ Достигнут лимит итераций ($maxIterations)")
+                        }
+
+                        // Формируем финальный ответ
+                        val tokenInfo = usageToTokenInfo(currentResponse.usage, modelType)
+                        val contextWindowUsage = currentResponse.usage?.let { usage ->
+                            val inputTokens = usage.inputTextTokens.toIntOrNull() ?: 0
+                            val isActuallyCompressed = request.compressContext &&
+                                chatHistory.getCompressionInfo(request.chatId) != null
+                            chatHistory.calculateContextWindowUsage(
+                                chatId = request.chatId,
+                                currentRequestTokens = inputTokens,
+                                isCompressed = isActuallyCompressed
+                            )
+                        }
+
+                        chatHistory.addMessage(request.chatId, "user", request.message)
+                        chatHistory.addMessage(request.chatId, "assistant", currentResponse.response.message, currentResponse.usage)
+
+                        call.respond(ChatResponse(
+                            response = currentResponse.response.message,
+                            title = currentResponse.response.title,
+                            isMultiAgent = false,
+                            agents = null,
+                            tokenUsage = tokenInfo,
+                            contextWindowUsage = contextWindowUsage,
+                            usedTools = usedTools.distinct().takeIf { it.isNotEmpty() },
+                            ragUsed = ragEnrichmentInfo?.ragUsed ?: false,
+                            ragContext = ragEnrichmentInfo?.ragContext,
+                            ragChunksCount = ragEnrichmentInfo?.chunksCount,
+                            ragFilteringStats = toFilteringStatsData(ragEnrichmentInfo?.filteringStats),
+                            ragRerankingStats = toRerankingStatsData(ragEnrichmentInfo?.rerankingStats),
+                            ragSources = toSourcesData(ragEnrichmentInfo?.sources)
+                        ))
+                        return@post
                     }
 
-                    // Сохраняем сообщения в истории
-                    chatHistory.addMessage(request.chatId, "user", request.message)
-                    chatHistory.addMessage(request.chatId, "assistant", toolCallResult.response.message, mcpCheckResponse.usage)
+                    // Если только MCP вызовы - используем существующий handler
+                    if (mcpCalls.isNotEmpty()) {
+                        println("🔧 Обрабатываем через MCP handler")
+                        val toolCallResult = mcpToolHandler.handleToolCalls(
+                            llmResponse = toolCheckResponse.response,
+                            conversationHistory = messagesForTools,
+                            temperature = request.temperature ?: 0.6
+                        )
 
-                    // Возвращаем ответ от MCP с информацией об использованных инструментах
-                    val mcpResponse = ChatResponse(
-                        response = toolCallResult.response.message,
-                        title = toolCallResult.response.title,
-                        isMultiAgent = false,
-                        agents = null,
-                        tokenUsage = tokenInfo,
-                        contextWindowUsage = contextWindowUsage,
-                        usedTools = toolCallResult.usedTools.takeIf { it.isNotEmpty() }, // Передаем использованные инструменты
-                        ragUsed = ragEnrichmentInfo?.ragUsed ?: false,
-                        ragContext = ragEnrichmentInfo?.ragContext,
-                        ragChunksCount = ragEnrichmentInfo?.chunksCount,
-                        ragFilteringStats = toFilteringStatsData(ragEnrichmentInfo?.filteringStats),
-                        ragRerankingStats = toRerankingStatsData(ragEnrichmentInfo?.rerankingStats),
-                        ragSources = toSourcesData(ragEnrichmentInfo?.sources)
-                    )
+                        // Конвертируем Usage в TokenUsageInfo
+                        val tokenInfo = usageToTokenInfo(toolCheckResponse.usage, modelType)
 
-                    call.respond(mcpResponse)
-                    return@post
+                        // Вычисляем использование контекстного окна
+                        val contextWindowUsage = toolCheckResponse.usage?.let { usage ->
+                            val inputTokens = usage.inputTextTokens.toIntOrNull() ?: 0
+                            val isActuallyCompressed = request.compressContext &&
+                                chatHistory.getCompressionInfo(request.chatId) != null
+                            chatHistory.calculateContextWindowUsage(
+                                chatId = request.chatId,
+                                currentRequestTokens = inputTokens,
+                                isCompressed = isActuallyCompressed
+                            )
+                        }
+
+                        // Сохраняем сообщения в истории
+                        chatHistory.addMessage(request.chatId, "user", request.message)
+                        chatHistory.addMessage(request.chatId, "assistant", toolCallResult.response.message, toolCheckResponse.usage)
+
+                        // Возвращаем ответ от MCP с информацией об использованных инструментах
+                        val mcpResponse = ChatResponse(
+                            response = toolCallResult.response.message,
+                            title = toolCallResult.response.title,
+                            isMultiAgent = false,
+                            agents = null,
+                            tokenUsage = tokenInfo,
+                            contextWindowUsage = contextWindowUsage,
+                            usedTools = toolCallResult.usedTools.takeIf { it.isNotEmpty() },
+                            ragUsed = ragEnrichmentInfo?.ragUsed ?: false,
+                            ragContext = ragEnrichmentInfo?.ragContext,
+                            ragChunksCount = ragEnrichmentInfo?.chunksCount,
+                            ragFilteringStats = toFilteringStatsData(ragEnrichmentInfo?.filteringStats),
+                            ragRerankingStats = toRerankingStatsData(ragEnrichmentInfo?.rerankingStats),
+                            ragSources = toSourcesData(ragEnrichmentInfo?.sources)
+                        )
+
+                        call.respond(mcpResponse)
+                        return@post
+                    }
                 }
 
-                println("=== MCP tool не требуется ===")
+                println("=== Tool calls не требуются ===")
 
                 // КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Если RAG нашел контекст - отвечаем НАПРЯМУЮ без агентов!
                 val multiAgentResponse = if (ragEnrichmentInfo?.ragUsed == true && ragEnrichmentInfo.chunksCount > 0) {
