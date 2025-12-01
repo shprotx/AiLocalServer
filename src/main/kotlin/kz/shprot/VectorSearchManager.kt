@@ -17,7 +17,7 @@ class VectorSearchManager(
     data class FilteringConfig(
         val initialCandidates: Int = 20,           // Сколько кандидатов взять на первом этапе
         val primaryThreshold: Double = 0.3,        // Первичный порог (низкий, чтобы не упустить)
-        val smartThreshold: Double = 0.5,          // Умный порог для финальной фильтрации
+        val smartThreshold: Double = 0.6,          // Умный порог для финальной фильтрации (повышен с 0.5)
         val topK: Int = 5,                         // Финальное количество результатов
         val removeDuplicates: Boolean = true       // Удалять дубликаты по содержанию
     ) {
@@ -29,7 +29,7 @@ class VectorSearchManager(
             val STRICT = FilteringConfig(
                 initialCandidates = 15,
                 primaryThreshold = 0.4,
-                smartThreshold = 0.65,
+                smartThreshold = 0.7,              // Повышен с 0.65
                 topK = 3
             )
 
@@ -37,7 +37,7 @@ class VectorSearchManager(
             val LENIENT = FilteringConfig(
                 initialCandidates = 30,
                 primaryThreshold = 0.2,
-                smartThreshold = 0.4,
+                smartThreshold = 0.5,              // Повышен с 0.4
                 topK = 7
             )
         }

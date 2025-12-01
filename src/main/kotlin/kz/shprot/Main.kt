@@ -62,6 +62,53 @@ fun buildRAGConfig(filterMode: String, useReranking: Boolean): RAGManager.RAGCon
 }
 
 /**
+ * Расширение короткого запроса контекстом из истории диалога
+ *
+ * Проблема: Короткие запросы типа "в общем", "да", "продолжай" дают
+ * нерелевантные результаты при поиске в базе знаний, потому что
+ * эмбеддинг такого запроса слишком generic.
+ *
+ * Решение: Для коротких запросов (< 30 символов) добавляем контекст
+ * из последних сообщений диалога, чтобы эмбеддинг был более точным.
+ *
+ * @param query исходный запрос пользователя
+ * @param history история сообщений диалога
+ * @param minQueryLength минимальная длина запроса, ниже которой добавляем контекст
+ * @return расширенный запрос для RAG поиска
+ */
+fun expandQueryWithContext(
+    query: String,
+    history: List<Message>,
+    minQueryLength: Int = 30
+): String {
+    // Если запрос достаточно длинный - возвращаем как есть
+    if (query.length >= minQueryLength) {
+        return query
+    }
+
+    // Если история пуста - возвращаем как есть
+    if (history.isEmpty()) {
+        return query
+    }
+
+    // Берём последние 2-4 сообщения (user + assistant пары) для контекста
+    val recentMessages = history.takeLast(4)
+        .filter { it.role != "system" }  // Исключаем system prompt
+        .joinToString(" ") { it.text }
+        .take(200)  // Ограничиваем длину контекста
+
+    if (recentMessages.isBlank()) {
+        return query
+    }
+
+    // Формируем расширенный запрос: контекст + текущий запрос
+    val expandedQuery = "$recentMessages $query"
+    println("📝 Запрос расширен контекстом: '$query' -> '${expandedQuery.take(100)}...'")
+
+    return expandedQuery
+}
+
+/**
  * Helper функция для конвертации FilteringStats в API модель
  */
 fun toFilteringStatsData(stats: FilteringStats?): RAGFilteringStatsData? {
@@ -355,8 +402,10 @@ fun main() {
 
                 if (request.useRAG) {
                     val ragConfig = buildRAGConfig(request.ragFilterMode, request.useReranking)
+                    // Расширяем короткие запросы контекстом из истории для более точного поиска
+                    val expandedQuery = expandQueryWithContext(request.message, history)
                     ragEnrichmentInfo = ragManager.augmentPromptWithKnowledgeDetailed(
-                        userQuery = request.message,
+                        userQuery = expandedQuery,
                         originalMessages = baseMessages,
                         config = ragConfig
                     )
