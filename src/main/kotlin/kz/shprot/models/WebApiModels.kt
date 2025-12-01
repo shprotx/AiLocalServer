@@ -302,9 +302,121 @@ data class RegisterProjectRequest(
 )
 
 /**
+ * Информация о проекте для API ответов
+ */
+@Serializable
+data class ProjectInfoResponse(
+    val id: String,
+    val name: String,
+    val rootPath: String,
+    val type: String,
+    val readmePath: String? = null,
+    val docsPath: String? = null,
+    val gitBranch: String? = null,
+    val isCurrent: Boolean = false
+)
+
+/**
+ * Ответ на регистрацию проекта
+ */
+@Serializable
+data class ProjectRegisterResponse(
+    val success: Boolean,
+    val project: ProjectInfoResponse? = null,
+    val error: String? = null
+)
+
+/**
+ * Ответ со списком проектов
+ */
+@Serializable
+data class ProjectListResponse(
+    val projects: List<ProjectInfoResponse>,
+    val currentProjectId: String? = null
+)
+
+/**
+ * Ответ на выбор проекта
+ */
+@Serializable
+data class ProjectSelectResponse(
+    val success: Boolean,
+    val project: ProjectInfoResponse? = null,
+    val error: String? = null
+)
+
+/**
+ * Ответ на команду
+ */
+@Serializable
+data class CommandResultResponse(
+    val success: Boolean,
+    val output: String? = null,
+    val error: String? = null,
+    val isMarkdown: Boolean = false,
+    val isCommand: Boolean = true,
+    val originalMessage: String? = null
+)
+
+/**
+ * Ответ с git веткой
+ */
+@Serializable
+data class GitBranchResponse(
+    val branch: String?,
+    val projectId: String? = null
+)
+
+/**
  * Запрос на выполнение команды
  */
 @Serializable
 data class CommandRequest(
     val command: String
+)
+
+/**
+ * Информация о команде
+ */
+@Serializable
+data class CommandInfo(
+    val name: String,
+    val description: String,
+    val usage: String
+)
+
+/**
+ * Список доступных команд
+ */
+@Serializable
+data class CommandListResponse(
+    val commands: List<CommandInfo>
+)
+
+/**
+ * Ответ с содержимым README
+ */
+@Serializable
+data class ReadmeResponse(
+    val content: String,
+    val projectId: String? = null
+)
+
+/**
+ * Информация о файле документации
+ */
+@Serializable
+data class DocFileInfo(
+    val name: String,
+    val path: String,
+    val size: Long
+)
+
+/**
+ * Список файлов документации
+ */
+@Serializable
+data class DocsListResponse(
+    val docs: List<DocFileInfo>,
+    val projectId: String? = null
 )

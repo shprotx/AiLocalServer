@@ -1106,19 +1106,20 @@ fun main() {
             get("/api/projects") {
                 val projects = projectManager.getAllProjects()
                 val currentProject = projectManager.getCurrentProject()
-                call.respond(mapOf(
-                    "projects" to projects.map { project ->
-                        mapOf(
-                            "id" to project.id,
-                            "name" to project.name,
-                            "rootPath" to project.rootPath,
-                            "type" to project.type.name,
-                            "description" to project.description,
-                            "isCurrent" to (project.id == currentProject?.id),
-                            "gitBranch" to projectManager.getGitBranch(project.id)
+                call.respond(ProjectListResponse(
+                    projects = projects.map { project ->
+                        ProjectInfoResponse(
+                            id = project.id,
+                            name = project.name,
+                            rootPath = project.rootPath,
+                            type = project.type.name,
+                            readmePath = project.readmePath,
+                            docsPath = project.docsPath,
+                            isCurrent = (project.id == currentProject?.id),
+                            gitBranch = projectManager.getGitBranch(project.id)
                         )
                     },
-                    "currentProjectId" to currentProject?.id
+                    currentProjectId = currentProject?.id
                 ))
             }
 
@@ -1133,27 +1134,31 @@ fun main() {
                         onSuccess = {
                             // Автоматически переключаемся на новый проект
                             projectManager.switchProject(project.id)
-                            call.respond(HttpStatusCode.Created, mapOf(
-                                "success" to true,
-                                "project" to mapOf(
-                                    "id" to project.id,
-                                    "name" to project.name,
-                                    "rootPath" to project.rootPath,
-                                    "type" to project.type.name,
-                                    "readmePath" to project.readmePath,
-                                    "docsPath" to project.docsPath
+                            call.respond(HttpStatusCode.Created, ProjectRegisterResponse(
+                                success = true,
+                                project = ProjectInfoResponse(
+                                    id = project.id,
+                                    name = project.name,
+                                    rootPath = project.rootPath,
+                                    type = project.type.name,
+                                    readmePath = project.readmePath,
+                                    docsPath = project.docsPath,
+                                    gitBranch = projectManager.getGitBranch(project.id)
                                 )
                             ))
                         },
                         onFailure = { e ->
-                            call.respond(HttpStatusCode.BadRequest, SimpleErrorResponse(error = e.message ?: "Unknown error"))
+                            call.respond(HttpStatusCode.BadRequest, ProjectRegisterResponse(
+                                success = false,
+                                error = e.message ?: "Unknown error"
+                            ))
                         }
                     )
                 } catch (e: Exception) {
                     println("❌ Ошибка при регистрации проекта: ${e.message}")
                     call.respond(
                         HttpStatusCode.InternalServerError,
-                        SimpleErrorResponse(error = e.message ?: "Unknown error")
+                        ProjectRegisterResponse(success = false, error = e.message ?: "Unknown error")
                     )
                 }
             }
@@ -1162,23 +1167,31 @@ fun main() {
             post("/api/projects/{id}/select") {
                 val projectId = call.parameters["id"]
                 if (projectId == null) {
-                    call.respond(HttpStatusCode.BadRequest, SimpleErrorResponse(error = "Project ID required"))
+                    call.respond(HttpStatusCode.BadRequest, ProjectSelectResponse(
+                        success = false,
+                        error = "Project ID required"
+                    ))
                     return@post
                 }
 
                 projectManager.switchProject(projectId).fold(
                     onSuccess = { project ->
-                        call.respond(mapOf(
-                            "success" to true,
-                            "project" to mapOf(
-                                "id" to project.id,
-                                "name" to project.name,
-                                "gitBranch" to projectManager.getGitBranch()
+                        call.respond(ProjectSelectResponse(
+                            success = true,
+                            project = ProjectInfoResponse(
+                                id = project.id,
+                                name = project.name,
+                                rootPath = project.rootPath,
+                                type = project.type.name,
+                                gitBranch = projectManager.getGitBranch()
                             )
                         ))
                     },
                     onFailure = { e ->
-                        call.respond(HttpStatusCode.NotFound, SimpleErrorResponse(error = e.message ?: "Unknown error"))
+                        call.respond(HttpStatusCode.NotFound, ProjectSelectResponse(
+                            success = false,
+                            error = e.message ?: "Unknown error"
+                        ))
                     }
                 )
             }
@@ -1192,7 +1205,7 @@ fun main() {
                 }
 
                 if (projectManager.unregisterProject(projectId)) {
-                    call.respond(mapOf("success" to true))
+                    call.respond(ProjectSelectResponse(success = true))
                 } else {
                     call.respond(HttpStatusCode.NotFound, SimpleErrorResponse(error = "Project not found"))
                 }
@@ -1202,9 +1215,9 @@ fun main() {
             get("/api/git/branch") {
                 val branch = projectManager.getGitBranch()
                 if (branch != null) {
-                    call.respond(mapOf(
-                        "branch" to branch,
-                        "projectId" to projectManager.getCurrentProject()?.id
+                    call.respond(GitBranchResponse(
+                        branch = branch,
+                        projectId = projectManager.getCurrentProject()?.id
                     ))
                 } else {
                     call.respond(HttpStatusCode.NotFound, SimpleErrorResponse(
@@ -1225,24 +1238,25 @@ fun main() {
 
                     when (result) {
                         is CommandHandler.CommandResult.Success -> {
-                            call.respond(mapOf(
-                                "success" to true,
-                                "output" to result.output,
-                                "isMarkdown" to result.isMarkdown,
-                                "isCommand" to true
+                            call.respond(CommandResultResponse(
+                                success = true,
+                                output = result.output,
+                                isMarkdown = result.isMarkdown,
+                                isCommand = true
                             ))
                         }
                         is CommandHandler.CommandResult.Error -> {
-                            call.respond(mapOf(
-                                "success" to false,
-                                "error" to result.message,
-                                "isCommand" to true
+                            call.respond(CommandResultResponse(
+                                success = false,
+                                error = result.message,
+                                isCommand = true
                             ))
                         }
                         is CommandHandler.CommandResult.NotACommand -> {
-                            call.respond(mapOf(
-                                "isCommand" to false,
-                                "originalMessage" to result.originalMessage
+                            call.respond(CommandResultResponse(
+                                success = true,
+                                isCommand = false,
+                                originalMessage = result.originalMessage
                             ))
                         }
                     }
@@ -1250,7 +1264,7 @@ fun main() {
                     println("❌ Ошибка при обработке команды: ${e.message}")
                     call.respond(
                         HttpStatusCode.InternalServerError,
-                        SimpleErrorResponse(error = e.message ?: "Unknown error")
+                        CommandResultResponse(success = false, error = e.message ?: "Unknown error")
                     )
                 }
             }
@@ -1258,13 +1272,13 @@ fun main() {
             // Получение списка доступных команд
             get("/api/commands") {
                 val commands = commandHandler.getCommands().map { cmd ->
-                    mapOf(
-                        "name" to cmd.name,
-                        "description" to cmd.description,
-                        "usage" to cmd.usage
+                    CommandInfo(
+                        name = cmd.name,
+                        description = cmd.description,
+                        usage = cmd.usage
                     )
                 }
-                call.respond(mapOf("commands" to commands))
+                call.respond(CommandListResponse(commands = commands))
             }
 
             // ==================== PROJECT README/DOCS API ====================
@@ -1273,9 +1287,9 @@ fun main() {
             get("/api/project/readme") {
                 val content = projectManager.getReadmeContent()
                 if (content != null) {
-                    call.respond(mapOf(
-                        "content" to content,
-                        "projectId" to projectManager.getCurrentProject()?.id
+                    call.respond(ReadmeResponse(
+                        content = content,
+                        projectId = projectManager.getCurrentProject()?.id
                     ))
                 } else {
                     call.respond(HttpStatusCode.NotFound, SimpleErrorResponse(
@@ -1286,11 +1300,23 @@ fun main() {
 
             // Получение списка документации проекта
             get("/api/project/docs") {
+                val currentProject = projectManager.getCurrentProject()
                 val docs = projectManager.getDocsFiles()
-                call.respond(mapOf(
-                    "files" to docs,
-                    "count" to docs.size,
-                    "projectId" to projectManager.getCurrentProject()?.id
+                val docInfos = docs.map { path ->
+                    val file = if (currentProject != null) {
+                        java.io.File(currentProject.rootPath, path)
+                    } else {
+                        java.io.File(path)
+                    }
+                    DocFileInfo(
+                        name = file.name,
+                        path = path,
+                        size = if (file.exists()) file.length() else 0
+                    )
+                }
+                call.respond(DocsListResponse(
+                    docs = docInfos,
+                    projectId = currentProject?.id
                 ))
             }
         }

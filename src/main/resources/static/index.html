@@ -2559,9 +2559,13 @@
                 chatContainer.removeChild(loadingDiv);
 
                 if (result) {
-                    // Format command response nicely
-                    const formattedResponse = result.response || 'Команда выполнена';
-                    addMessage(formattedResponse, false, result.command || 'Системная команда');
+                    if (result.isCommand) {
+                        // Format command response nicely
+                        const formattedResponse = result.success
+                            ? (result.output || 'Команда выполнена')
+                            : (result.error || 'Ошибка выполнения команды');
+                        addMessage(formattedResponse, false, message.split(' ')[0]);
+                    }
                 }
                 return;
             }
