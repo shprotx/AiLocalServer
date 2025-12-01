@@ -15,10 +15,10 @@ import java.util.*
  */
 class AgentManager(
     private val apiKey: String,
-    private val model: String,
+    private val modelUri: String,
     private val chatHistory: ChatHistory
 ) {
-    private val baseClient = DeepSeekClient(apiKey, model)
+    private val baseClient = YandexLLMClient(apiKey, modelUri)
     private val jsonParser = Json { ignoreUnknownKeys = true }
 
     // Вспомогательная функция для суммирования Usage

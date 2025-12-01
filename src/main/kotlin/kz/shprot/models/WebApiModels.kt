@@ -210,7 +210,7 @@ data class DeleteDocumentResponse(
 )
 
 @Serializable
-data class ErrorResponse(
+data class SimpleErrorResponse(
     val error: String
 )
 
@@ -279,4 +279,32 @@ data class SourceInfoData(
     val documentId: Int,
     val filename: String,
     val fileType: String
+)
+
+// ==================== TOOL REGISTRY API Models ====================
+
+/**
+ * Запрос на выполнение инструмента
+ */
+@Serializable
+data class ToolExecuteRequest(
+    val toolName: String,
+    val arguments: String  // JSON строка с аргументами
+)
+
+/**
+ * Запрос на регистрацию проекта
+ */
+@Serializable
+data class RegisterProjectRequest(
+    val path: String,
+    val name: String? = null
+)
+
+/**
+ * Запрос на выполнение команды
+ */
+@Serializable
+data class CommandRequest(
+    val command: String
 )

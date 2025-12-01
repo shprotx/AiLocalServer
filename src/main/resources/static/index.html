@@ -85,6 +85,91 @@
             font-size: 16px;
         }
 
+        /* Project selector styles */
+        .project-selector {
+            padding: 12px;
+            background: #F5F5F5;
+            border-bottom: 1px solid #E0E0E0;
+        }
+
+        .project-selector-header {
+            font-size: 11px;
+            font-weight: 600;
+            color: rgba(0,0,0,0.54);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .project-selector select {
+            width: 100%;
+            padding: 8px 10px;
+            font-size: 13px;
+            border: 1px solid #E0E0E0;
+            border-radius: 4px;
+            background: #FFFFFF;
+            cursor: pointer;
+        }
+
+        .project-selector select:focus {
+            outline: none;
+            border-color: #1976D2;
+        }
+
+        .project-info {
+            margin-top: 8px;
+            padding: 8px;
+            background: #FFFFFF;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+
+        .project-info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .project-info-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .project-info-label {
+            color: rgba(0,0,0,0.54);
+        }
+
+        .project-info-value {
+            color: rgba(0,0,0,0.87);
+            font-weight: 500;
+        }
+
+        .git-branch-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            background: #E8F5E9;
+            color: #2E7D32;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        .add-project-button {
+            background: none;
+            border: none;
+            color: #1976D2;
+            cursor: pointer;
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        .add-project-button:hover {
+            background: rgba(25, 118, 210, 0.1);
+        }
+
         .chats-list {
             flex: 1;
             overflow-y: auto;
@@ -1369,6 +1454,28 @@
                     <button class="knowledge-base-button" id="knowledgeBaseButton">База знаний</button>
                 </div>
             </div>
+
+            <!-- Project Selector -->
+            <div class="project-selector">
+                <div class="project-selector-header">
+                    <span>🗂️ Проект</span>
+                    <button class="add-project-button" id="addProjectButton">+ Добавить</button>
+                </div>
+                <select id="projectSelect">
+                    <option value="">-- Выберите проект --</option>
+                </select>
+                <div class="project-info" id="projectInfo" style="display: none;">
+                    <div class="project-info-row">
+                        <span class="project-info-label">Тип:</span>
+                        <span class="project-info-value" id="projectType">-</span>
+                    </div>
+                    <div class="project-info-row">
+                        <span class="project-info-label">Git:</span>
+                        <span class="git-branch-badge" id="projectBranch">-</span>
+                    </div>
+                </div>
+            </div>
+
             <div class="chats-list" id="chatsList">
                 <!-- Chat items will be inserted here -->
             </div>
@@ -1594,6 +1701,17 @@
         let lastSystemChatMessageCount = 0; // Для отслеживания новых сообщений
         const SYSTEM_CHAT_ID = 1; // ID системного чата для Daily Summaries
 
+        // Project state
+        let projects = [];
+        let currentProjectId = null;
+
+        // Project selector elements
+        const projectSelect = document.getElementById('projectSelect');
+        const projectInfo = document.getElementById('projectInfo');
+        const projectType = document.getElementById('projectType');
+        const projectBranch = document.getElementById('projectBranch');
+        const addProjectButton = document.getElementById('addProjectButton');
+
         // Toast notification functions
         function showToast(title, message, type = 'info', duration = 5000) {
             const toastContainer = document.getElementById('toastContainer');
@@ -1682,11 +1800,17 @@
         // Initialize
         async function init() {
             await loadChats();
+            await loadProjects(); // Загрузка проектов
+
             if (chats.length === 0) {
                 await createNewChat();
             } else {
                 await switchToChat(chats[0].id);
             }
+
+            // Event listeners for project selector
+            projectSelect.addEventListener('change', (e) => selectProject(e.target.value));
+            addProjectButton.addEventListener('click', registerProject);
 
             // Запускаем проверку новых Daily Summaries каждые 30 секунд
             await checkForNewDailySummaries(); // Первая проверка сразу
@@ -1703,6 +1827,123 @@
             } catch (error) {
                 console.error('Failed to load chats:', error);
                 chats = [];
+            }
+        }
+
+        // Project API functions
+        async function loadProjects() {
+            try {
+                const response = await fetch('/api/projects');
+                const data = await response.json();
+                projects = data.projects || [];
+                renderProjectSelect();
+
+                // Если есть текущий проект - обновить информацию
+                if (data.current) {
+                    currentProjectId = data.current.id;
+                    updateProjectInfo(data.current);
+                }
+            } catch (error) {
+                console.error('Failed to load projects:', error);
+                projects = [];
+            }
+        }
+
+        function renderProjectSelect() {
+            projectSelect.innerHTML = '<option value="">-- Выберите проект --</option>';
+            projects.forEach(project => {
+                const option = document.createElement('option');
+                option.value = project.id;
+                option.textContent = project.name;
+                if (project.id === currentProjectId) {
+                    option.selected = true;
+                }
+                projectSelect.appendChild(option);
+            });
+        }
+
+        async function selectProject(projectId) {
+            if (!projectId) {
+                currentProjectId = null;
+                projectInfo.style.display = 'none';
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/projects/${projectId}/select`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    currentProjectId = projectId;
+                    updateProjectInfo(data.project);
+                    showToast('Проект выбран', `Активный проект: ${data.project.name}`, 'success', 3000);
+                }
+            } catch (error) {
+                console.error('Failed to select project:', error);
+                showToast('Ошибка', 'Не удалось выбрать проект', 'error');
+            }
+        }
+
+        function updateProjectInfo(project) {
+            if (!project) {
+                projectInfo.style.display = 'none';
+                return;
+            }
+
+            projectType.textContent = project.type || 'Unknown';
+            projectBranch.textContent = project.gitBranch || 'N/A';
+            projectInfo.style.display = 'block';
+        }
+
+        async function registerProject() {
+            const path = prompt('Введите путь к проекту:', '/Users/');
+            if (!path) return;
+
+            const name = prompt('Введите название проекта (или оставьте пустым для автоопределения):');
+
+            try {
+                const response = await fetch('/api/projects', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path, name: name || undefined })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    showToast('Проект добавлен', `Проект "${data.project.name}" зарегистрирован`, 'success');
+                    await loadProjects();
+                    // Автоматически выбираем новый проект
+                    await selectProject(data.project.id);
+                } else {
+                    showToast('Ошибка', data.error || 'Не удалось добавить проект', 'error');
+                }
+            } catch (error) {
+                console.error('Failed to register project:', error);
+                showToast('Ошибка', 'Не удалось добавить проект: ' + error.message, 'error');
+            }
+        }
+
+        // Slash command handler
+        async function handleSlashCommand(input) {
+            const trimmed = input.trim();
+            if (!trimmed.startsWith('/')) return null;
+
+            try {
+                const response = await fetch('/api/command', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ command: trimmed })
+                });
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('Failed to execute command:', error);
+                return {
+                    success: false,
+                    response: 'Ошибка выполнения команды: ' + error.message
+                };
             }
         }
 
@@ -2303,6 +2544,27 @@
             const hasFile = currentFileContent !== null;
 
             if (!message && !hasFile) return;
+
+            // Handle slash commands
+            if (message.startsWith('/')) {
+                messageInput.value = '';
+                addMessage(message, true);
+
+                const loadingDiv = document.createElement('div');
+                loadingDiv.className = 'loading';
+                loadingDiv.innerHTML = '<div class="loading-text">Выполняю команду...</div>';
+                chatContainer.appendChild(loadingDiv);
+
+                const result = await handleSlashCommand(message);
+                chatContainer.removeChild(loadingDiv);
+
+                if (result) {
+                    // Format command response nicely
+                    const formattedResponse = result.response || 'Команда выполнена';
+                    addMessage(formattedResponse, false, result.command || 'Системная команда');
+                }
+                return;
+            }
 
             const tempValue = temperatureInput.value.trim();
             const temperature = tempValue !== '' ? parseFloat(tempValue) : 0.6;

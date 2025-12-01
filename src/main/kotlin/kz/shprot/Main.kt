@@ -11,6 +11,8 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.utils.io.*
 import kz.shprot.models.*
+import kz.shprot.tools.*
+import kz.shprot.commands.CommandHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -192,6 +194,12 @@ fun main() {
     // MCP Manager для подключения внешних инструментов
     val mcpManager = SimpleMcpManager()
 
+    // Tool Registry - система собственных инструментов (кодовый ассистент)
+    val projectManager = ProjectManager("projects.json")
+    val toolRegistry = ToolFactory.createRegistry(projectManager)
+    val toolExecutor = ToolExecutor(toolRegistry, projectManager)
+    val commandHandler = CommandHandler(toolRegistry, projectManager, ragManager)
+
     println("=== Локальный сервер для общения с Yandex LLM ===")
     println("База данных: chats.db")
     println("Модель: $modelType")
@@ -199,6 +207,7 @@ fun main() {
     println("Multi-Agent система: включена")
     println("RAG/База знаний: включена (Ollama + nomic-embed-text)")
     println("MCP серверы: см. mcp-servers.json")
+    println("Tool Registry: ${toolRegistry.count()} инструментов в ${toolRegistry.getCategories().size} категориях")
     println("Сервер запускается на http://localhost:8080")
     println("Откройте браузер и перейдите по этому адресу")
     println()
@@ -924,7 +933,7 @@ fun main() {
                     e.printStackTrace()
                     call.respond(
                         HttpStatusCode.InternalServerError,
-                        ErrorResponse(error = e.message ?: "Unknown error")
+                        SimpleErrorResponse(error = e.message ?: "Unknown error")
                     )
                 }
             }
@@ -950,7 +959,7 @@ fun main() {
                     println("❌ Ошибка при получении списка документов: ${e.message}")
                     call.respond(
                         HttpStatusCode.InternalServerError,
-                        ErrorResponse(error = e.message ?: "Unknown error")
+                        SimpleErrorResponse(error = e.message ?: "Unknown error")
                     )
                 }
             }
@@ -960,13 +969,13 @@ fun main() {
                 try {
                     val documentId = call.parameters["id"]?.toIntOrNull()
                     if (documentId == null) {
-                        call.respond(HttpStatusCode.BadRequest, ErrorResponse(error = "Invalid document ID"))
+                        call.respond(HttpStatusCode.BadRequest, SimpleErrorResponse(error = "Invalid document ID"))
                         return@get
                     }
 
                     val document = db.getDocument(documentId)
                     if (document == null) {
-                        call.respond(HttpStatusCode.NotFound, ErrorResponse(error = "Document not found"))
+                        call.respond(HttpStatusCode.NotFound, SimpleErrorResponse(error = "Document not found"))
                         return@get
                     }
 
@@ -981,7 +990,7 @@ fun main() {
                     println("❌ Ошибка при получении документа: ${e.message}")
                     call.respond(
                         HttpStatusCode.InternalServerError,
-                        ErrorResponse(error = e.message ?: "Unknown error")
+                        SimpleErrorResponse(error = e.message ?: "Unknown error")
                     )
                 }
             }
@@ -991,7 +1000,7 @@ fun main() {
                 try {
                     val documentId = call.parameters["id"]?.toIntOrNull()
                     if (documentId == null) {
-                        call.respond(HttpStatusCode.BadRequest, ErrorResponse(error = "Invalid document ID"))
+                        call.respond(HttpStatusCode.BadRequest, SimpleErrorResponse(error = "Invalid document ID"))
                         return@delete
                     }
 
@@ -999,13 +1008,13 @@ fun main() {
                     if (deleted) {
                         call.respond(DeleteDocumentResponse(success = true, message = "Документ удален"))
                     } else {
-                        call.respond(HttpStatusCode.NotFound, ErrorResponse(error = "Document not found"))
+                        call.respond(HttpStatusCode.NotFound, SimpleErrorResponse(error = "Document not found"))
                     }
                 } catch (e: Exception) {
                     println("❌ Ошибка при удалении документа: ${e.message}")
                     call.respond(
                         HttpStatusCode.InternalServerError,
-                        ErrorResponse(error = e.message ?: "Unknown error")
+                        SimpleErrorResponse(error = e.message ?: "Unknown error")
                     )
                 }
             }
@@ -1023,16 +1032,266 @@ fun main() {
                     } else {
                         call.respond(
                             HttpStatusCode.InternalServerError,
-                            ErrorResponse(error = "Failed to clear knowledge base")
+                            SimpleErrorResponse(error = "Failed to clear knowledge base")
                         )
                     }
                 } catch (e: Exception) {
                     println("❌ Ошибка при очистке базы знаний: ${e.message}")
                     call.respond(
                         HttpStatusCode.InternalServerError,
-                        ErrorResponse(error = e.message ?: "Unknown error")
+                        SimpleErrorResponse(error = e.message ?: "Unknown error")
                     )
                 }
+            }
+
+            // ==================== TOOL REGISTRY API ====================
+
+            // Получение списка всех инструментов
+            get("/api/tools") {
+                val tools = toolRegistry.getAll().map { tool ->
+                    mapOf(
+                        "name" to tool.name,
+                        "description" to tool.description,
+                        "parameters" to tool.parametersSchema
+                    )
+                }
+                val categories = toolRegistry.getCategories()
+                call.respond(mapOf(
+                    "tools" to tools,
+                    "categories" to categories,
+                    "count" to tools.size
+                ))
+            }
+
+            // Выполнение инструмента напрямую
+            post("/api/tools/execute") {
+                try {
+                    val request = call.receive<ToolExecuteRequest>()
+                    println("🔧 Запрос на выполнение инструмента: ${request.toolName}")
+
+                    val arguments = kotlinx.serialization.json.Json.parseToJsonElement(
+                        request.arguments
+                    ) as kotlinx.serialization.json.JsonObject
+
+                    val result = toolExecutor.execute(request.toolName, arguments)
+
+                    when (result) {
+                        is ToolResult.Success -> {
+                            call.respond(mapOf(
+                                "success" to true,
+                                "output" to result.output,
+                                "metadata" to result.metadata
+                            ))
+                        }
+                        is ToolResult.Error -> {
+                            call.respond(HttpStatusCode.BadRequest, mapOf(
+                                "success" to false,
+                                "error" to result.message,
+                                "recoverable" to result.recoverable
+                            ))
+                        }
+                    }
+                } catch (e: Exception) {
+                    println("❌ Ошибка при выполнении инструмента: ${e.message}")
+                    call.respond(
+                        HttpStatusCode.InternalServerError,
+                        SimpleErrorResponse(error = e.message ?: "Unknown error")
+                    )
+                }
+            }
+
+            // ==================== PROJECT MANAGEMENT API ====================
+
+            // Получение списка проектов
+            get("/api/projects") {
+                val projects = projectManager.getAllProjects()
+                val currentProject = projectManager.getCurrentProject()
+                call.respond(mapOf(
+                    "projects" to projects.map { project ->
+                        mapOf(
+                            "id" to project.id,
+                            "name" to project.name,
+                            "rootPath" to project.rootPath,
+                            "type" to project.type.name,
+                            "description" to project.description,
+                            "isCurrent" to (project.id == currentProject?.id),
+                            "gitBranch" to projectManager.getGitBranch(project.id)
+                        )
+                    },
+                    "currentProjectId" to currentProject?.id
+                ))
+            }
+
+            // Регистрация нового проекта
+            post("/api/projects") {
+                try {
+                    val request = call.receive<RegisterProjectRequest>()
+                    println("📁 Регистрация проекта: ${request.path}")
+
+                    val project = ProjectManager.createProjectFromPath(request.path, request.name)
+                    projectManager.registerProject(project).fold(
+                        onSuccess = {
+                            // Автоматически переключаемся на новый проект
+                            projectManager.switchProject(project.id)
+                            call.respond(HttpStatusCode.Created, mapOf(
+                                "success" to true,
+                                "project" to mapOf(
+                                    "id" to project.id,
+                                    "name" to project.name,
+                                    "rootPath" to project.rootPath,
+                                    "type" to project.type.name,
+                                    "readmePath" to project.readmePath,
+                                    "docsPath" to project.docsPath
+                                )
+                            ))
+                        },
+                        onFailure = { e ->
+                            call.respond(HttpStatusCode.BadRequest, SimpleErrorResponse(error = e.message ?: "Unknown error"))
+                        }
+                    )
+                } catch (e: Exception) {
+                    println("❌ Ошибка при регистрации проекта: ${e.message}")
+                    call.respond(
+                        HttpStatusCode.InternalServerError,
+                        SimpleErrorResponse(error = e.message ?: "Unknown error")
+                    )
+                }
+            }
+
+            // Переключение на проект
+            post("/api/projects/{id}/select") {
+                val projectId = call.parameters["id"]
+                if (projectId == null) {
+                    call.respond(HttpStatusCode.BadRequest, SimpleErrorResponse(error = "Project ID required"))
+                    return@post
+                }
+
+                projectManager.switchProject(projectId).fold(
+                    onSuccess = { project ->
+                        call.respond(mapOf(
+                            "success" to true,
+                            "project" to mapOf(
+                                "id" to project.id,
+                                "name" to project.name,
+                                "gitBranch" to projectManager.getGitBranch()
+                            )
+                        ))
+                    },
+                    onFailure = { e ->
+                        call.respond(HttpStatusCode.NotFound, SimpleErrorResponse(error = e.message ?: "Unknown error"))
+                    }
+                )
+            }
+
+            // Удаление проекта
+            delete("/api/projects/{id}") {
+                val projectId = call.parameters["id"]
+                if (projectId == null) {
+                    call.respond(HttpStatusCode.BadRequest, SimpleErrorResponse(error = "Project ID required"))
+                    return@delete
+                }
+
+                if (projectManager.unregisterProject(projectId)) {
+                    call.respond(mapOf("success" to true))
+                } else {
+                    call.respond(HttpStatusCode.NotFound, SimpleErrorResponse(error = "Project not found"))
+                }
+            }
+
+            // Получение текущей ветки git (для минимума зачёта)
+            get("/api/git/branch") {
+                val branch = projectManager.getGitBranch()
+                if (branch != null) {
+                    call.respond(mapOf(
+                        "branch" to branch,
+                        "projectId" to projectManager.getCurrentProject()?.id
+                    ))
+                } else {
+                    call.respond(HttpStatusCode.NotFound, SimpleErrorResponse(
+                        error = "No project selected or not a git repository"
+                    ))
+                }
+            }
+
+            // ==================== COMMAND HANDLER API ====================
+
+            // Обработка slash-команд
+            post("/api/command") {
+                try {
+                    val request = call.receive<CommandRequest>()
+                    println("⚡ Обработка команды: ${request.command}")
+
+                    val result = commandHandler.handle(request.command)
+
+                    when (result) {
+                        is CommandHandler.CommandResult.Success -> {
+                            call.respond(mapOf(
+                                "success" to true,
+                                "output" to result.output,
+                                "isMarkdown" to result.isMarkdown,
+                                "isCommand" to true
+                            ))
+                        }
+                        is CommandHandler.CommandResult.Error -> {
+                            call.respond(mapOf(
+                                "success" to false,
+                                "error" to result.message,
+                                "isCommand" to true
+                            ))
+                        }
+                        is CommandHandler.CommandResult.NotACommand -> {
+                            call.respond(mapOf(
+                                "isCommand" to false,
+                                "originalMessage" to result.originalMessage
+                            ))
+                        }
+                    }
+                } catch (e: Exception) {
+                    println("❌ Ошибка при обработке команды: ${e.message}")
+                    call.respond(
+                        HttpStatusCode.InternalServerError,
+                        SimpleErrorResponse(error = e.message ?: "Unknown error")
+                    )
+                }
+            }
+
+            // Получение списка доступных команд
+            get("/api/commands") {
+                val commands = commandHandler.getCommands().map { cmd ->
+                    mapOf(
+                        "name" to cmd.name,
+                        "description" to cmd.description,
+                        "usage" to cmd.usage
+                    )
+                }
+                call.respond(mapOf("commands" to commands))
+            }
+
+            // ==================== PROJECT README/DOCS API ====================
+
+            // Получение README текущего проекта
+            get("/api/project/readme") {
+                val content = projectManager.getReadmeContent()
+                if (content != null) {
+                    call.respond(mapOf(
+                        "content" to content,
+                        "projectId" to projectManager.getCurrentProject()?.id
+                    ))
+                } else {
+                    call.respond(HttpStatusCode.NotFound, SimpleErrorResponse(
+                        error = "README not found in current project"
+                    ))
+                }
+            }
+
+            // Получение списка документации проекта
+            get("/api/project/docs") {
+                val docs = projectManager.getDocsFiles()
+                call.respond(mapOf(
+                    "files" to docs,
+                    "count" to docs.size,
+                    "projectId" to projectManager.getCurrentProject()?.id
+                ))
             }
         }
     }.also { server ->
