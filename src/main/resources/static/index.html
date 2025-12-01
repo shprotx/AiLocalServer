@@ -18,39 +18,211 @@
             margin: 0;
             padding: 0;
             height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            overflow: hidden;
         }
 
-        .container {
-            max-width: 800px;
-            width: 100%;
+        .app-container {
+            display: flex;
             height: 100vh;
+        }
+
+        /* Sidebar styles */
+        .sidebar {
+            width: 280px;
             background: #FFFFFF;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1), 0 4px 8px rgba(0,0,0,0.08);
-            overflow: hidden;
+            border-right: 1px solid #E0E0E0;
             display: flex;
             flex-direction: column;
+            box-shadow: 2px 0 4px rgba(0,0,0,0.05);
+        }
+
+        .sidebar-header {
+            padding: 16px;
+            background: #1976D2;
+            color: #FFFFFF;
+        }
+
+        .sidebar-header h2 {
+            font-size: 18px;
+            font-weight: 500;
+            margin-bottom: 12px;
+        }
+
+        .sidebar-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .new-chat-button, .knowledge-base-button {
+            flex: 1;
+            padding: 10px 12px;
+            background: rgba(255,255,255,0.2);
+            color: #FFFFFF;
+            border: 1px solid rgba(255,255,255,0.4);
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .new-chat-button:hover, .knowledge-base-button:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .new-chat-button::before {
+            content: '+';
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .knowledge-base-button::before {
+            content: '📚';
+            font-size: 16px;
+        }
+
+        .chats-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .chat-item {
+            padding: 12px;
+            margin-bottom: 4px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+            position: relative;
+            border: 1px solid transparent;
+        }
+
+        .chat-item:hover {
+            background: #F5F5F5;
+        }
+
+        .chat-item.active {
+            background: #E3F2FD;
+            border-color: #1976D2;
+        }
+
+        .chat-item-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: rgba(0,0,0,0.87);
+            margin-bottom: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            padding-right: 24px;
+        }
+
+        .chat-item-date {
+            font-size: 11px;
+            color: rgba(0,0,0,0.54);
+        }
+
+        .chat-item-delete {
+            position: absolute;
+            top: 50%;
+            right: 8px;
+            transform: translateY(-50%);
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #F44336;
+            color: #FFFFFF;
+            border: none;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .chat-item:hover .chat-item-delete {
+            display: flex;
+        }
+
+        .chat-item-delete:hover {
+            background: #D32F2F;
+        }
+
+        /* Main content area */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #FFFFFF;
         }
 
         .header {
             background: #1976D2;
             color: #FFFFFF;
-            padding: 24px 20px;
+            padding: 12px 16px;
             text-align: center;
         }
 
-        .header h1 {
-            font-size: 24px;
-            font-weight: 500;
-            margin-bottom: 4px;
+        .header-title {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 10px;
         }
 
-        .header p {
-            font-size: 14px;
-            opacity: 0.9;
+        .header h1 {
+            font-size: 18px;
+            font-weight: 500;
+            margin: 0;
+        }
+
+        .header-subtitle {
+            font-size: 12px;
+            opacity: 0.85;
             font-weight: 400;
+        }
+
+        .header-stats-wrapper {
+            display: flex;
+            gap: 8px;
+            margin-top: 0;
+            align-items: stretch;
+        }
+
+        .token-stats {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 6px;
+            font-size: 12px;
+            flex: 1;
+        }
+
+        .token-stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .token-stat-label {
+            opacity: 0.8;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+        }
+
+        .token-stat-value {
+            font-weight: 600;
+            font-size: 13px;
         }
 
         .chat-container {
@@ -70,6 +242,7 @@
             word-wrap: break-word;
             line-height: 1.5;
             box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+            position: relative;
         }
 
         .user-message {
@@ -86,6 +259,31 @@
             align-self: flex-start;
             border-bottom-left-radius: 2px;
             border: 1px solid #E0E0E0;
+        }
+
+        .token-info {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(0,0,0,0.1);
+            font-size: 11px;
+            display: flex;
+            gap: 12px;
+            color: rgba(0,0,0,0.6);
+        }
+
+        .user-message .token-info {
+            border-top: 1px solid rgba(255,255,255,0.2);
+            color: rgba(255,255,255,0.8);
+        }
+
+        .token-info-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .token-info-label {
+            font-weight: 600;
         }
 
         .input-container {
@@ -109,11 +307,11 @@
         }
 
         #temperatureInput {
-            width: 70px;
-            padding: 12px 10px;
+            width: 60px;
+            padding: 4px 8px;
             border: 1px solid #BDBDBD;
             border-radius: 4px;
-            font-size: 15px;
+            font-size: 13px;
             outline: none;
             font-family: 'Roboto Mono', monospace;
             transition: border-color 0.2s;
@@ -135,29 +333,25 @@
         #temperatureInput:focus {
             border-color: #1976D2;
             border-width: 2px;
-            padding: 11px 9px;
+            padding: 3px 7px;
         }
 
         .temperature-label {
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 8px 12px;
-            background: #F5F5F5;
+            gap: 6px;
+            padding: 6px 10px;
+            background: #FFFFFF;
             border-radius: 4px;
             border: 1px solid #E0E0E0;
-        }
-
-        .temperature-label label {
-            font-size: 13px;
-            color: rgba(0,0,0,0.7);
-            font-weight: 500;
             white-space: nowrap;
         }
 
-        .temperature-label::before {
-            content: '🌡️';
-            font-size: 16px;
+        .temperature-label label {
+            font-size: 12px;
+            color: rgba(0,0,0,0.7);
+            font-weight: 500;
+            white-space: nowrap;
         }
 
         #sendButton {
@@ -190,37 +384,89 @@
             box-shadow: none;
         }
 
+        #compareButton {
+            padding: 12px 20px;
+            background: #FF9800;
+            color: #FFFFFF;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: background 0.2s, box-shadow 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.14);
+            white-space: nowrap;
+        }
+
+        #compareButton:hover {
+            background: #F57C00;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        #compareButton:active {
+            background: #E65100;
+        }
+
+        #compareButton:disabled {
+            background: #BDBDBD;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
         .loading {
             align-self: flex-start;
-            background: #FFFFFF;
-            padding: 16px 20px;
-            border-radius: 8px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+            background: linear-gradient(135deg, #FFFFFF 0%, #F5F9FF 100%);
+            padding: 20px 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(25, 118, 210, 0.15), 0 2px 4px rgba(0,0,0,0.08);
             max-width: 70%;
-            border: 1px solid #E0E0E0;
+            border: 2px solid #E3F2FD;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                box-shadow: 0 4px 12px rgba(25, 118, 210, 0.15), 0 2px 4px rgba(0,0,0,0.08);
+            }
+            50% {
+                box-shadow: 0 6px 16px rgba(25, 118, 210, 0.25), 0 2px 4px rgba(0,0,0,0.12);
+            }
         }
 
         .loading-text {
-            font-size: 14px;
-            color: rgba(0,0,0,0.6);
-            margin-bottom: 8px;
+            font-size: 15px;
+            color: #1976D2;
+            margin-bottom: 12px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .progress-bar {
             width: 100%;
-            height: 4px;
-            background: #E0E0E0;
-            border-radius: 2px;
+            height: 6px;
+            background: #E3F2FD;
+            border-radius: 3px;
             overflow: hidden;
             position: relative;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
         }
 
         .progress-bar-fill {
             height: 100%;
-            background: linear-gradient(90deg, #1976D2, #42A5F5, #1976D2);
+            background: linear-gradient(90deg,
+                #1976D2 0%,
+                #42A5F5 25%,
+                #64B5F6 50%,
+                #42A5F5 75%,
+                #1976D2 100%);
             background-size: 200% 100%;
-            animation: progress 1.5s ease-in-out infinite;
-            border-radius: 2px;
+            animation: progress 1.2s ease-in-out infinite;
+            border-radius: 3px;
+            box-shadow: 0 0 10px rgba(25, 118, 210, 0.5);
         }
 
         @keyframes progress {
@@ -232,7 +478,7 @@
             }
         }
 
-        /* Markdown стили */
+        /* Markdown styles */
         .message pre {
             background: #1E1E1E;
             border-radius: 6px;
@@ -330,7 +576,7 @@
             background: rgba(255,255,255,0.2);
         }
 
-        /* Multi-agent стили */
+        /* Multi-agent styles */
         .multi-agent-container {
             background: #FFFFFF;
             align-self: flex-start;
@@ -383,49 +629,1045 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
+
+        /* Bottom controls wrapper */
+        .bottom-controls-wrapper {
+            display: flex;
+            gap: 8px;
+            padding: 8px 12px;
+            background: #F5F5F5;
+            border-top: 1px solid #E0E0E0;
+            align-items: stretch;
+        }
+
+        /* File upload styles */
+        .file-upload-container {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex: 1;
+            padding: 6px 10px;
+            background: #FFFFFF;
+            border-radius: 4px;
+            border: 1px solid #E0E0E0;
+        }
+
+        .file-upload-label {
+            cursor: pointer;
+            padding: 4px 10px;
+            background: #1976D2;
+            color: #FFFFFF;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: background 0.2s;
+            white-space: nowrap;
+        }
+
+        .file-upload-label:hover {
+            background: #1565C0;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .file-name {
+            flex: 1;
+            font-size: 12px;
+            color: rgba(0,0,0,0.7);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .file-name.empty {
+            color: rgba(0,0,0,0.4);
+            font-style: italic;
+        }
+
+        .clear-file-button {
+            padding: 3px 8px;
+            background: #F44336;
+            color: #FFFFFF;
+            border: none;
+            border-radius: 3px;
+            font-size: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .clear-file-button:hover {
+            background: #D32F2F;
+        }
+
+        /* Compression controls styles */
+        .compression-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+            padding: 6px 10px;
+            background: #FFFFFF;
+            border-radius: 4px;
+            border: 1px solid #E0E0E0;
+            justify-content: center;
+        }
+
+        .compression-control-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .compression-control-item input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
+        .compression-control-item input[type="checkbox"]:disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .compression-control-item label {
+            font-size: 12px;
+            color: rgba(0,0,0,0.87);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .compression-control-item label.disabled {
+            color: rgba(0,0,0,0.38);
+            cursor: not-allowed;
+        }
+
+        .compression-info {
+            font-size: 9px;
+            color: rgba(0,0,0,0.54);
+            font-style: italic;
+            line-height: 1.2;
+        }
+
+        .context-window-indicator {
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 6px;
+            min-width: 280px;
+            flex-shrink: 0;
+        }
+
+        .context-window-label {
+            font-size: 9px;
+            opacity: 0.8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .context-window-percent {
+            font-weight: 600;
+            font-size: 11px;
+        }
+
+        .context-window-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 3px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .context-window-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.3s ease, background-color 0.3s ease;
+            box-shadow: 0 0 8px rgba(255,255,255,0.3);
+        }
+
+        .context-window-fill.low {
+            background: linear-gradient(90deg, #4CAF50, #66BB6A);
+        }
+
+        .context-window-fill.medium {
+            background: linear-gradient(90deg, #FFC107, #FFD54F);
+        }
+
+        .context-window-fill.high {
+            background: linear-gradient(90deg, #FF9800, #FFB74D);
+        }
+
+        .context-window-fill.critical {
+            background: linear-gradient(90deg, #F44336, #EF5350);
+            animation: pulse-warning 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-warning {
+            0%, 100% {
+                box-shadow: 0 0 10px rgba(244, 67, 54, 0.5);
+            }
+            50% {
+                box-shadow: 0 0 20px rgba(244, 67, 54, 0.8);
+            }
+        }
+
+        .context-window-details {
+            display: flex;
+            justify-content: space-between;
+            font-size: 9px;
+            margin-top: 3px;
+            opacity: 0.7;
+        }
+
+        .compression-badge {
+            display: inline-block;
+            padding: 1px 5px;
+            background: rgba(76, 175, 80, 0.3);
+            border: 1px solid rgba(76, 175, 80, 0.5);
+            border-radius: 2px;
+            font-size: 8px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .empty-state {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            color: rgba(0,0,0,0.38);
+            padding: 40px;
+            text-align: center;
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-state-text {
+            font-size: 18px;
+            margin-bottom: 8px;
+        }
+
+        .empty-state-subtext {
+            font-size: 14px;
+        }
+
+        /* Toast notification styles */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            background: #323232;
+            color: #FFFFFF;
+            padding: 16px 24px;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 300px;
+            max-width: 500px;
+            animation: slideIn 0.3s ease-out;
+            cursor: pointer;
+        }
+
+        .toast.success {
+            background: #4CAF50;
+        }
+
+        .toast.error {
+            background: #F44336;
+        }
+
+        .toast.info {
+            background: #2196F3;
+        }
+
+        .toast-icon {
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        .toast-content {
+            flex: 1;
+        }
+
+        .toast-title {
+            font-weight: 500;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .toast-message {
+            font-size: 13px;
+            opacity: 0.9;
+        }
+
+        .toast-close {
+            background: none;
+            border: none;
+            color: #FFFFFF;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 0;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+
+        .toast-close:hover {
+            opacity: 1;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+        }
+
+        .toast.hiding {
+            animation: slideOut 0.3s ease-out forwards;
+        }
+
+        /* ==================== RAG Compare Styles ==================== */
+        .compare-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            padding: 12px;
+            background: #F5F5F5;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            max-width: 100%;
+        }
+
+        .compare-column {
+            background: #FFFFFF;
+            border-radius: 8px;
+            padding: 16px;
+            border: 2px solid #E0E0E0;
+            min-height: 200px;
+        }
+
+        .compare-column.with-rag {
+            border-color: #4CAF50;
+        }
+
+        .compare-column.without-rag {
+            border-color: #FF9800;
+        }
+
+        .compare-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #E0E0E0;
+        }
+
+        .compare-column.with-rag .compare-header {
+            color: #4CAF50;
+            border-bottom-color: #4CAF50;
+        }
+
+        .compare-column.without-rag .compare-header {
+            color: #FF9800;
+            border-bottom-color: #FF9800;
+        }
+
+        .compare-content {
+            line-height: 1.6;
+            color: rgba(0,0,0,0.87);
+        }
+
+        .compare-rag-context {
+            margin-top: 12px;
+            padding: 12px;
+            background: #E8F5E9;
+            border-left: 4px solid #4CAF50;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .compare-rag-context-header {
+            font-weight: 600;
+            color: #2E7D32;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .compare-rag-context-content {
+            color: rgba(0,0,0,0.7);
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 8px;
+            background: #FFFFFF;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+        }
+
+        .compare-rag-context-content.collapsed {
+            display: none;
+        }
+
+        .compare-token-info {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #E0E0E0;
+            font-size: 11px;
+            color: rgba(0,0,0,0.6);
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        /* ==================== RAG Badge Styles ==================== */
+        .rag-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            background: linear-gradient(135deg, #4CAF50, #66BB6A);
+            color: #FFFFFF;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-left: 8px;
+            box-shadow: 0 2px 4px rgba(76, 175, 80, 0.3);
+        }
+
+        /* ==================== Knowledge Base Modal Styles ==================== */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 9999;
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-container {
+            background: #FFFFFF;
+            border-radius: 8px;
+            max-width: 800px;
+            width: 90%;
+            max-height: 90vh;
+            overflow: hidden;
+            box-shadow: 0 24px 48px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            padding: 20px 24px;
+            background: #1976D2;
+            color: #FFFFFF;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #E0E0E0;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .modal-close {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: #FFFFFF;
+            font-size: 24px;
+            cursor: pointer;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .modal-close:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .modal-body {
+            padding: 24px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .kb-upload-section {
+            margin-bottom: 24px;
+            padding: 20px;
+            background: #F5F9FF;
+            border-radius: 8px;
+            border: 2px dashed #1976D2;
+        }
+
+        .kb-upload-area {
+            text-align: center;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .kb-upload-area:hover {
+            background: #E3F2FD;
+        }
+
+        .kb-upload-area.drag-over {
+            background: #BBDEFB;
+            border-color: #0D47A1;
+        }
+
+        .kb-upload-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .kb-upload-text {
+            font-size: 14px;
+            color: rgba(0,0,0,0.7);
+            margin-bottom: 8px;
+        }
+
+        .kb-upload-hint {
+            font-size: 12px;
+            color: rgba(0,0,0,0.54);
+        }
+
+        .kb-stats {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            padding: 16px;
+            background: #F5F5F5;
+            border-radius: 8px;
+        }
+
+        .kb-stat-item {
+            flex: 1;
+            text-align: center;
+        }
+
+        .kb-stat-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1976D2;
+        }
+
+        .kb-stat-label {
+            font-size: 12px;
+            color: rgba(0,0,0,0.6);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 4px;
+        }
+
+        .kb-documents-list {
+            margin-top: 16px;
+        }
+
+        .kb-document-item {
+            padding: 12px 16px;
+            background: #FFFFFF;
+            border: 1px solid #E0E0E0;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: box-shadow 0.2s;
+        }
+
+        .kb-document-item:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .kb-document-info {
+            flex: 1;
+        }
+
+        .kb-document-name {
+            font-weight: 500;
+            color: rgba(0,0,0,0.87);
+            margin-bottom: 4px;
+        }
+
+        .kb-document-meta {
+            font-size: 11px;
+            color: rgba(0,0,0,0.54);
+            display: flex;
+            gap: 12px;
+        }
+
+        .kb-document-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .kb-action-button {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .kb-action-button.delete {
+            background: #FFEBEE;
+            color: #D32F2F;
+        }
+
+        .kb-action-button.delete:hover {
+            background: #F44336;
+            color: #FFFFFF;
+        }
+
+        .kb-empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: rgba(0,0,0,0.54);
+        }
+
+        .kb-empty-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        /* RAG Statistics Styles */
+        .rag-stats {
+            margin-top: 12px;
+            padding: 12px;
+            background: #F5F5F5;
+            border-radius: 8px;
+            border-left: 4px solid #2196F3;
+        }
+
+        .rag-stats-header {
+            font-size: 13px;
+            font-weight: 600;
+            color: #1976D2;
+            margin-bottom: 8px;
+        }
+
+        .rag-stats-content {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+        }
+
+        .stat-label {
+            color: rgba(0,0,0,0.6);
+        }
+
+        .stat-value {
+            font-weight: 500;
+            color: rgba(0,0,0,0.87);
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>AI Local Server</h1>
-            <p>DeepSeek V3</p>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h2>Чаты</h2>
+                <div class="sidebar-buttons">
+                    <button class="new-chat-button" id="newChatButton">Новый чат</button>
+                    <button class="knowledge-base-button" id="knowledgeBaseButton">База знаний</button>
+                </div>
+            </div>
+            <div class="chats-list" id="chatsList">
+                <!-- Chat items will be inserted here -->
+            </div>
         </div>
 
-        <div class="chat-container" id="chatContainer"></div>
+        <!-- Knowledge Base Modal -->
+        <input type="file" id="fileInput" accept=".txt,.pdf" style="display: none;" />
 
-        <div class="input-container">
-            <input
-                type="text"
-                id="messageInput"
-                placeholder="Введите сообщение..."
-                autocomplete="off"
-            />
-            <div class="temperature-label">
-                <label for="temperatureInput">T</label>
-                <input
-                    type="number"
-                    id="temperatureInput"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    value="0.6"
-                    title="Температура генерации (0.0 - 1.0)"
-                />
+        <!-- Main content -->
+        <div class="main-content">
+            <div class="header">
+                <div class="header-title">
+                    <h1>AI Local Server</h1>
+                    <span class="header-subtitle">(Yandex GPT)</span>
+                </div>
+                <div class="header-stats-wrapper">
+                    <div class="token-stats" id="tokenStats">
+                        <div class="token-stat-item">
+                            <div class="token-stat-label">Сообщений</div>
+                            <div class="token-stat-value" id="messageCount">0</div>
+                        </div>
+                        <div class="token-stat-item">
+                            <div class="token-stat-label">До сжатия</div>
+                            <div class="token-stat-value" id="compressionProgress">-</div>
+                        </div>
+                        <div class="token-stat-item">
+                            <div class="token-stat-label">Входящие</div>
+                            <div class="token-stat-value" id="totalInputTokens">0</div>
+                        </div>
+                        <div class="token-stat-item">
+                            <div class="token-stat-label">Исходящие</div>
+                            <div class="token-stat-value" id="totalOutputTokens">0</div>
+                        </div>
+                        <div class="token-stat-item">
+                            <div class="token-stat-label">Всего токенов</div>
+                            <div class="token-stat-value" id="totalTokens">0</div>
+                        </div>
+                        <div class="token-stat-item">
+                            <div class="token-stat-label">Стоимость</div>
+                            <div class="token-stat-value" id="totalCost">0 ₽</div>
+                        </div>
+                    </div>
+
+                    <div class="context-window-indicator">
+                        <div class="context-window-label">
+                            <span>Контекстное окно</span>
+                            <span class="context-window-percent" id="contextWindowPercent">0%</span>
+                        </div>
+                        <div class="context-window-bar">
+                            <div class="context-window-fill low" id="contextWindowFill" style="width: 0%"></div>
+                        </div>
+                        <div class="context-window-details">
+                            <span id="contextWindowTokens">0 / 8000 токенов</span>
+                            <span id="contextWindowStatus"></span>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <button id="sendButton">Отправить</button>
+
+            <div class="chat-container" id="chatContainer">
+                <div class="empty-state">
+                    <div class="empty-state-icon">💬</div>
+                    <div class="empty-state-text">Выберите чат или создайте новый</div>
+                    <div class="empty-state-subtext">Нажмите "Новый чат" для начала</div>
+                </div>
+            </div>
+
+            <div class="bottom-controls-wrapper">
+                <div class="file-upload-container" id="fileUploadContainer">
+                    <label for="fileInput" class="file-upload-label">
+                        📎 Файл
+                    </label>
+                    <input type="file" id="fileInput" accept=".txt,.md,.json,.xml,.html,.css,.js,.py,.java,.kt,.c,.cpp,.h,.log,.csv,.yaml,.yml" />
+                    <span class="file-name empty" id="fileName">Файл не выбран</span>
+                    <button class="clear-file-button" id="clearFileButton" style="display: none;">Очистить</button>
+                </div>
+
+                <div class="compression-controls">
+                    <div class="compression-control-item">
+                        <input type="checkbox" id="compressContextToggle" />
+                        <label for="compressContextToggle">Сжимать контекст (каждые 10 сообщений, сохраняя последнее)</label>
+                    </div>
+                    <div class="compression-control-item">
+                        <input type="checkbox" id="compressSystemPromptToggle" disabled />
+                        <label for="compressSystemPromptToggle" class="disabled">Сжимать системный промпт</label>
+                    </div>
+                    <div class="compression-control-item">
+                        <input type="checkbox" id="useRAGToggle" checked />
+                        <label for="useRAGToggle">📚 Использовать RAG (база знаний)</label>
+                    </div>
+                    <div class="compression-control-item">
+                        <label for="ragFilterModeSelect" style="margin-right: 8px;">Режим фильтрации:</label>
+                        <select id="ragFilterModeSelect" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #E0E0E0; font-size: 12px; cursor: pointer;">
+                            <option value="default">Default (сбалансированный)</option>
+                            <option value="strict">Strict (строгий)</option>
+                            <option value="lenient">Lenient (мягкий)</option>
+                        </select>
+                    </div>
+                    <div class="compression-control-item">
+                        <input type="checkbox" id="useRerankingToggle" checked />
+                        <label for="useRerankingToggle">🔄 Включить Reranking</label>
+                    </div>
+                </div>
+
+                <div class="temperature-label">
+                    <label for="temperatureInput">Температура</label>
+                    <input
+                        type="number"
+                        id="temperatureInput"
+                        min="0"
+                        max="1"
+                        step="0.1"
+                        value="0.6"
+                        title="Температура генерации (0.0 - 1.0)"
+                    />
+                </div>
+            </div>
+
+            <div class="input-container">
+                <input
+                    type="text"
+                    id="messageInput"
+                    placeholder="Введите сообщение..."
+                    autocomplete="off"
+                />
+                <button id="compareButton">⚖️ Сравнить</button>
+                <button id="sendButton">Отправить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Knowledge Base Modal -->
+    <div class="modal-overlay" id="knowledgeBaseModal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <span>📚</span>
+                    <span>Управление базой знаний</span>
+                </div>
+                <button class="modal-close" id="closeModalButton">×</button>
+            </div>
+            <div class="modal-body">
+                <!-- Upload Section -->
+                <div class="kb-upload-section">
+                    <div class="kb-upload-area" id="kbUploadArea">
+                        <div class="kb-upload-icon">📤</div>
+                        <div class="kb-upload-text">Перетащите файлы сюда или нажмите для выбора</div>
+                        <div class="kb-upload-hint">Поддерживаются: PDF, TXT</div>
+                        <input type="file" id="kbFileInput" accept=".pdf,.txt" style="display: none;" />
+                    </div>
+                </div>
+
+                <!-- Stats Section -->
+                <div class="kb-stats">
+                    <div class="kb-stat-item">
+                        <div class="kb-stat-value" id="kbTotalDocuments">0</div>
+                        <div class="kb-stat-label">Документов</div>
+                    </div>
+                    <div class="kb-stat-item">
+                        <div class="kb-stat-value" id="kbTotalChunks">0</div>
+                        <div class="kb-stat-label">Чанков</div>
+                    </div>
+                </div>
+
+                <!-- Clear All Button -->
+                <div style="padding: 12px 20px;">
+                    <button id="clearKnowledgeBaseButton" style="width: 100%; padding: 10px; background: #f44336; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">
+                        🗑️ Очистить всю базу знаний
+                    </button>
+                </div>
+
+                <!-- Documents List -->
+                <div class="kb-documents-list" id="kbDocumentsList">
+                    <!-- Documents will be dynamically loaded here -->
+                </div>
+            </div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <script>
+        // DOM elements
         const chatContainer = document.getElementById('chatContainer');
         const messageInput = document.getElementById('messageInput');
         const temperatureInput = document.getElementById('temperatureInput');
         const sendButton = document.getElementById('sendButton');
+        const fileInput = document.getElementById('fileInput');
+        const fileName = document.getElementById('fileName');
+        const clearFileButton = document.getElementById('clearFileButton');
+        const compressContextToggle = document.getElementById('compressContextToggle');
+        const compressSystemPromptToggle = document.getElementById('compressSystemPromptToggle');
+        const compressSystemPromptLabel = document.querySelector('label[for="compressSystemPromptToggle"]');
+        const useRAGToggle = document.getElementById('useRAGToggle');
+        const ragFilterModeSelect = document.getElementById('ragFilterModeSelect');
+        const useRerankingToggle = document.getElementById('useRerankingToggle');
+        const compareButton = document.getElementById('compareButton');
+        const newChatButton = document.getElementById('newChatButton');
+        const knowledgeBaseButton = document.getElementById('knowledgeBaseButton');
+        const chatsList = document.getElementById('chatsList');
 
-        // Настройка marked для рендеринга кода
+        // Knowledge Base Modal Elements
+        const knowledgeBaseModal = document.getElementById('knowledgeBaseModal');
+        const closeModalButton = document.getElementById('closeModalButton');
+        const kbFileInput = document.getElementById('kbFileInput');
+        const kbUploadArea = document.getElementById('kbUploadArea');
+        const kbDocumentsList = document.getElementById('kbDocumentsList');
+        const kbTotalDocuments = document.getElementById('kbTotalDocuments');
+        const kbTotalChunks = document.getElementById('kbTotalChunks');
+
+        // State
+        let currentChatId = null;
+        let chats = [];
+        let sessionStats = {
+            totalInputTokens: 0,
+            totalOutputTokens: 0,
+            totalTokens: 0,
+            totalCost: 0,
+            messageCount: 0
+        };
+        let currentFileContent = null;
+        let currentFileName = null;
+        let lastSystemChatMessageCount = 0; // Для отслеживания новых сообщений
+        const SYSTEM_CHAT_ID = 1; // ID системного чата для Daily Summaries
+
+        // Toast notification functions
+        function showToast(title, message, type = 'info', duration = 5000) {
+            const toastContainer = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+
+            const icon = type === 'success' ? '✓' : type === 'error' ? '✕' : type === 'info' ? 'ℹ' : '📰';
+
+            toast.innerHTML = `
+                <div class="toast-icon">${icon}</div>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    <div class="toast-message">${message}</div>
+                </div>
+                <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+            `;
+
+            // Клик по toast переключает на системный чат (только для уведомлений о Daily Summary)
+            if (type === 'info' && title.includes('Daily Summary')) {
+                toast.style.cursor = 'pointer';
+                toast.onclick = (e) => {
+                    if (!e.target.classList.contains('toast-close')) {
+                        switchToChat(SYSTEM_CHAT_ID);
+                        toast.remove();
+                    }
+                };
+            }
+
+            toastContainer.appendChild(toast);
+
+            // Auto-remove after duration
+            if (duration > 0) {
+                setTimeout(() => {
+                    toast.classList.add('hiding');
+                    setTimeout(() => toast.remove(), 300);
+                }, duration);
+            }
+        }
+
+        // Проверка новых сообщений в системном чате
+        async function checkForNewDailySummaries() {
+            try {
+                const response = await fetch(`/api/chats/${SYSTEM_CHAT_ID}/messages`);
+                if (!response.ok) return;
+
+                const data = await response.json();
+                const messageCount = data.messages.length;
+
+                // Если это первая проверка, просто запоминаем количество
+                if (lastSystemChatMessageCount === 0) {
+                    lastSystemChatMessageCount = messageCount;
+                    return;
+                }
+
+                // Если появились новые сообщения
+                if (messageCount > lastSystemChatMessageCount) {
+                    const newMessagesCount = messageCount - lastSystemChatMessageCount;
+                    showToast(
+                        '📰 Daily Summary обновлен!',
+                        `Появилось новых сообщений: ${newMessagesCount}. Нажмите для просмотра.`,
+                        'info',
+                        10000 // 10 секунд
+                    );
+                    lastSystemChatMessageCount = messageCount;
+
+                    // Обновляем список чатов (чтобы обновилось время updated_at)
+                    await loadChats();
+                }
+            } catch (error) {
+                console.error('Failed to check for new daily summaries:', error);
+            }
+        }
+
+        // Configure marked
         marked.setOptions({
             highlight: function(code, lang) {
                 if (lang && hljs.getLanguage(lang)) {
@@ -437,25 +1679,426 @@
             gfm: true
         });
 
-        function addMessage(text, isUser, title = null, isMultiAgent = false, agents = null) {
+        // Initialize
+        async function init() {
+            await loadChats();
+            if (chats.length === 0) {
+                await createNewChat();
+            } else {
+                await switchToChat(chats[0].id);
+            }
+
+            // Запускаем проверку новых Daily Summaries каждые 30 секунд
+            await checkForNewDailySummaries(); // Первая проверка сразу
+            setInterval(checkForNewDailySummaries, 30000); // Затем каждые 30 секунд
+        }
+
+        // API functions
+        async function loadChats() {
+            try {
+                const response = await fetch('/api/chats');
+                const data = await response.json();
+                chats = data.chats || [];
+                renderChatsList();
+            } catch (error) {
+                console.error('Failed to load chats:', error);
+                chats = [];
+            }
+        }
+
+        async function createNewChat() {
+            try {
+                const response = await fetch('/api/chats', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: 'Новый чат' })
+                });
+                const newChat = await response.json();
+                // API возвращает {chatId, title}, преобразуем в формат Chat {id, ...}
+                const chat = {
+                    id: newChat.chatId,
+                    title: newChat.title,
+                    createdAt: Date.now(),
+                    updatedAt: Date.now()
+                };
+                chats.unshift(chat);
+                renderChatsList();
+                await switchToChat(chat.id);
+            } catch (error) {
+                console.error('Failed to create chat:', error);
+                alert('Не удалось создать чат: ' + error.message);
+            }
+        }
+
+        async function deleteChat(chatId) {
+            if (!confirm('Удалить этот чат?')) return;
+
+            try {
+                await fetch(`/api/chats/${chatId}`, { method: 'DELETE' });
+                chats = chats.filter(c => c.id !== chatId);
+                renderChatsList();
+
+                if (currentChatId === chatId) {
+                    if (chats.length > 0) {
+                        await switchToChat(chats[0].id);
+                    } else {
+                        await createNewChat();
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to delete chat:', error);
+                alert('Не удалось удалить чат: ' + error.message);
+            }
+        }
+
+        async function switchToChat(chatId) {
+            currentChatId = chatId;
+            clearChatContainer();
+            resetSessionStats();
+            renderChatsList();
+
+            try {
+                const response = await fetch(`/api/chats/${chatId}/messages`);
+                const data = await response.json();
+
+                if (data.messages && data.messages.length > 0) {
+                    data.messages.forEach(msg => {
+                        if (msg.role === 'user') {
+                            addMessage(msg.content, true);
+                        } else if (msg.role === 'assistant') {
+                            // Check if this is a comparison result
+                            if (msg.content.startsWith('__COMPARISON__')) {
+                                try {
+                                    // Extract JSON (remove prefix)
+                                    const jsonStr = msg.content.substring('__COMPARISON__'.length);
+                                    const comparisonData = JSON.parse(jsonStr);
+                                    // Display comparison in side-by-side format
+                                    displayComparisonResult(comparisonData);
+                                } catch (error) {
+                                    console.error('Failed to parse comparison data:', error);
+                                    // Fallback to regular message if parsing fails
+                                    addMessage(msg.content, false);
+                                }
+                            } else {
+                                // Regular assistant message
+                                addMessage(msg.content, false);
+                            }
+                        }
+                    });
+                    sessionStats.messageCount = data.messages.length;
+                    updateMessageCount(false);
+                }
+            } catch (error) {
+                console.error('Failed to load chat history:', error);
+            }
+
+            messageInput.focus();
+        }
+
+        function renderChatsList() {
+            chatsList.innerHTML = '';
+            chats.forEach(chat => {
+                const chatItem = document.createElement('div');
+                chatItem.className = 'chat-item' + (chat.id === currentChatId ? ' active' : '');
+
+                const title = document.createElement('div');
+                title.className = 'chat-item-title';
+                title.textContent = chat.title || 'Новый чат';
+
+                const date = document.createElement('div');
+                date.className = 'chat-item-date';
+                date.textContent = formatDate(chat.updatedAt || chat.createdAt);
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'chat-item-delete';
+                deleteBtn.innerHTML = '🗑️';
+                deleteBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    deleteChat(chat.id);
+                };
+
+                chatItem.appendChild(title);
+                chatItem.appendChild(date);
+                chatItem.appendChild(deleteBtn);
+
+                chatItem.onclick = () => switchToChat(chat.id);
+                chatsList.appendChild(chatItem);
+            });
+        }
+
+        function formatDate(timestamp) {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diff = now - date;
+            const minutes = Math.floor(diff / 60000);
+            const hours = Math.floor(diff / 3600000);
+            const days = Math.floor(diff / 86400000);
+
+            if (minutes < 1) return 'только что';
+            if (minutes < 60) return `${minutes} мин. назад`;
+            if (hours < 24) return `${hours} ч. назад`;
+            if (days < 7) return `${days} дн. назад`;
+
+            return date.toLocaleDateString('ru-RU');
+        }
+
+        function clearChatContainer() {
+            chatContainer.innerHTML = '';
+        }
+
+        function resetSessionStats() {
+            sessionStats = {
+                totalInputTokens: 0,
+                totalOutputTokens: 0,
+                totalTokens: 0,
+                totalCost: 0,
+                messageCount: 0
+            };
+            updateMessageCount(false);
+            updateTokenStats(null);
+        }
+
+        function updateTokenStats(tokenUsage) {
+            if (!tokenUsage) {
+                document.getElementById('totalInputTokens').textContent = '0';
+                document.getElementById('totalOutputTokens').textContent = '0';
+                document.getElementById('totalTokens').textContent = '0';
+                document.getElementById('totalCost').textContent = '0 ₽';
+                return;
+            }
+
+            sessionStats.totalInputTokens += tokenUsage.inputTokens;
+            sessionStats.totalOutputTokens += tokenUsage.outputTokens;
+            sessionStats.totalTokens += tokenUsage.totalTokens;
+            sessionStats.totalCost += tokenUsage.estimatedCostRub;
+
+            document.getElementById('totalInputTokens').textContent = sessionStats.totalInputTokens.toLocaleString();
+            document.getElementById('totalOutputTokens').textContent = sessionStats.totalOutputTokens.toLocaleString();
+            document.getElementById('totalTokens').textContent = sessionStats.totalTokens.toLocaleString();
+            document.getElementById('totalCost').textContent = sessionStats.totalCost.toFixed(2) + ' ₽';
+        }
+
+        function updateMessageCount(increment = true) {
+            if (increment) {
+                sessionStats.messageCount += 2;
+            }
+
+            document.getElementById('messageCount').textContent = sessionStats.messageCount;
+
+            const compressionProgressElement = document.getElementById('compressionProgress');
+
+            if (!compressContextToggle.checked) {
+                compressionProgressElement.textContent = '-';
+                compressionProgressElement.style.color = '';
+            } else if (sessionStats.messageCount === 0) {
+                compressionProgressElement.textContent = '-';
+                compressionProgressElement.style.color = '';
+            } else {
+                const messagesUntilCompression = 10 - (sessionStats.messageCount % 10);
+
+                if (messagesUntilCompression === 10) {
+                    compressionProgressElement.textContent = '✓';
+                    compressionProgressElement.style.color = '#4CAF50';
+                } else {
+                    compressionProgressElement.textContent = messagesUntilCompression;
+                    compressionProgressElement.style.color = '';
+                }
+            }
+        }
+
+        function updateContextWindowIndicator(contextWindowUsage) {
+            if (!contextWindowUsage) return;
+
+            const percentElement = document.getElementById('contextWindowPercent');
+            const fillElement = document.getElementById('contextWindowFill');
+            const tokensElement = document.getElementById('contextWindowTokens');
+            const statusElement = document.getElementById('contextWindowStatus');
+
+            const percent = Math.round(contextWindowUsage.usagePercent);
+            const currentTokens = contextWindowUsage.currentTokens;
+            const maxTokens = contextWindowUsage.maxTokens;
+            const isCompressed = contextWindowUsage.isCompressed;
+
+            percentElement.textContent = percent + '%';
+            fillElement.style.width = percent + '%';
+
+            fillElement.className = 'context-window-fill';
+            if (percent < 60) {
+                fillElement.classList.add('low');
+            } else if (percent < 80) {
+                fillElement.classList.add('medium');
+            } else if (percent < 90) {
+                fillElement.classList.add('high');
+            } else {
+                fillElement.classList.add('critical');
+            }
+
+            tokensElement.textContent = `${currentTokens.toLocaleString()} / ${maxTokens.toLocaleString()} токенов`;
+
+            if (isCompressed) {
+                statusElement.innerHTML = '<span class="compression-badge">Сжато</span>';
+            } else {
+                statusElement.textContent = '';
+            }
+        }
+
+        function createTokenInfo(tokenUsage) {
+            if (!tokenUsage) return null;
+
+            const tokenInfo = document.createElement('div');
+            tokenInfo.className = 'token-info';
+
+            const inputItem = document.createElement('div');
+            inputItem.className = 'token-info-item';
+            inputItem.innerHTML = `<span class="token-info-label">Входящие:</span> ${tokenUsage.inputTokens}`;
+
+            const outputItem = document.createElement('div');
+            outputItem.className = 'token-info-item';
+            outputItem.innerHTML = `<span class="token-info-label">Исходящие:</span> ${tokenUsage.outputTokens}`;
+
+            const totalItem = document.createElement('div');
+            totalItem.className = 'token-info-item';
+            totalItem.innerHTML = `<span class="token-info-label">Всего:</span> ${tokenUsage.totalTokens}`;
+
+            const costItem = document.createElement('div');
+            costItem.className = 'token-info-item';
+            costItem.innerHTML = `<span class="token-info-label">Стоимость:</span> ${tokenUsage.estimatedCostRub.toFixed(3)} ₽`;
+
+            tokenInfo.appendChild(inputItem);
+            tokenInfo.appendChild(outputItem);
+            tokenInfo.appendChild(totalItem);
+            tokenInfo.appendChild(costItem);
+
+            return tokenInfo;
+        }
+
+        function createUsedToolsBlock(usedTools) {
+            if (!usedTools || usedTools.length === 0) return null;
+
+            const toolsBlock = document.createElement('div');
+            toolsBlock.style.marginTop = '8px';
+            toolsBlock.style.padding = '8px 12px';
+            toolsBlock.style.backgroundColor = '#E3F2FD';
+            toolsBlock.style.borderLeft = '3px solid #2196F3';
+            toolsBlock.style.borderRadius = '4px';
+            toolsBlock.style.fontSize = '13px';
+
+            const toolsLabel = document.createElement('div');
+            toolsLabel.style.fontWeight = '600';
+            toolsLabel.style.color = '#1565C0';
+            toolsLabel.style.marginBottom = '6px';
+            toolsLabel.textContent = '🔧 Использованные инструменты:';
+            toolsBlock.appendChild(toolsLabel);
+
+            const toolsList = document.createElement('div');
+            toolsList.style.display = 'flex';
+            toolsList.style.flexWrap = 'wrap';
+            toolsList.style.gap = '6px';
+
+            usedTools.forEach(tool => {
+                const toolBadge = document.createElement('span');
+                toolBadge.style.display = 'inline-block';
+                toolBadge.style.padding = '3px 10px';
+                toolBadge.style.backgroundColor = '#BBDEFB';
+                toolBadge.style.color = '#0D47A1';
+                toolBadge.style.borderRadius = '12px';
+                toolBadge.style.fontSize = '12px';
+                toolBadge.style.fontWeight = '500';
+                toolBadge.textContent = tool;
+                toolsList.appendChild(toolBadge);
+            });
+
+            toolsBlock.appendChild(toolsList);
+            return toolsBlock;
+        }
+
+        function createSourcesBlock(ragSources) {
+            if (!ragSources || ragSources.length === 0) return null;
+
+            const sourcesBlock = document.createElement('div');
+            sourcesBlock.style.marginTop = '8px';
+            sourcesBlock.style.padding = '8px 12px';
+            sourcesBlock.style.backgroundColor = '#FFF3E0';
+            sourcesBlock.style.borderLeft = '3px solid #FF9800';
+            sourcesBlock.style.borderRadius = '4px';
+            sourcesBlock.style.fontSize = '13px';
+
+            const sourcesLabel = document.createElement('div');
+            sourcesLabel.style.fontWeight = '600';
+            sourcesLabel.style.color = '#E65100';
+            sourcesLabel.style.marginBottom = '6px';
+            sourcesLabel.textContent = '📄 Источники:';
+            sourcesBlock.appendChild(sourcesLabel);
+
+            const sourcesList = document.createElement('div');
+            sourcesList.style.display = 'flex';
+            sourcesList.style.flexDirection = 'column';
+            sourcesList.style.gap = '4px';
+
+            ragSources.forEach(source => {
+                const sourceLink = document.createElement('a');
+                sourceLink.href = `/api/documents/${source.documentId}`;
+                sourceLink.target = '_blank';
+                sourceLink.style.display = 'inline-block';
+                sourceLink.style.padding = '4px 10px';
+                sourceLink.style.backgroundColor = '#FFE0B2';
+                sourceLink.style.color = '#E65100';
+                sourceLink.style.borderRadius = '4px';
+                sourceLink.style.fontSize = '12px';
+                sourceLink.style.fontWeight = '500';
+                sourceLink.style.textDecoration = 'none';
+                sourceLink.style.cursor = 'pointer';
+                sourceLink.style.transition = 'background-color 0.2s';
+                sourceLink.textContent = `📎 ${source.filename}`;
+                sourceLink.title = `Документ ID: ${source.documentId}, Тип: ${source.fileType}`;
+
+                // Hover эффект
+                sourceLink.addEventListener('mouseenter', () => {
+                    sourceLink.style.backgroundColor = '#FFCC80';
+                });
+                sourceLink.addEventListener('mouseleave', () => {
+                    sourceLink.style.backgroundColor = '#FFE0B2';
+                });
+
+                // Обработка клика - показываем информацию о документе
+                sourceLink.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    try {
+                        const response = await fetch(`/api/documents/${source.documentId}`);
+                        if (response.ok) {
+                            const docInfo = await response.json();
+                            alert(`Документ: ${docInfo.filename}\nТип: ${docInfo.fileType}\nID: ${docInfo.id}\nЧанков: ${docInfo.totalChunks}\nДата загрузки: ${new Date(docInfo.uploadDate).toLocaleString('ru-RU')}`);
+                        } else {
+                            alert('Документ не найден или недоступен');
+                        }
+                    } catch (error) {
+                        console.error('Ошибка при получении документа:', error);
+                        alert('Ошибка при получении информации о документе');
+                    }
+                });
+
+                sourcesList.appendChild(sourceLink);
+            });
+
+            sourcesBlock.appendChild(sourcesList);
+            return sourcesBlock;
+        }
+
+        function addMessage(text, isUser, title = null, isMultiAgent = false, agents = null, tokenUsage = null, usedTools = null, ragUsed = false, ragContext = null, ragSources = null) {
             if (isUser) {
-                // Простое сообщение от пользователя
                 const messageDiv = document.createElement('div');
                 messageDiv.className = 'message user-message';
                 messageDiv.textContent = text;
                 chatContainer.appendChild(messageDiv);
             } else if (isMultiAgent && agents && agents.length > 0) {
-                // Multi-agent ответ
                 const container = document.createElement('div');
                 container.className = 'multi-agent-container';
 
-                // Заголовок
                 const header = document.createElement('div');
                 header.className = 'multi-agent-header';
                 header.textContent = title || 'Консультация специалистов';
                 container.appendChild(header);
 
-                // Ответы каждого агента
                 agents.forEach(agent => {
                     const agentDiv = document.createElement('div');
                     agentDiv.className = 'agent-response';
@@ -473,7 +2116,6 @@
                     container.appendChild(agentDiv);
                 });
 
-                // Синтез
                 const synthesisDiv = document.createElement('div');
                 synthesisDiv.className = 'synthesis-section';
 
@@ -486,18 +2128,46 @@
                 synthesisContent.innerHTML = marked.parse(text);
                 synthesisDiv.appendChild(synthesisContent);
 
+                if (tokenUsage) {
+                    const tokenInfo = createTokenInfo(tokenUsage);
+                    if (tokenInfo) {
+                        synthesisDiv.appendChild(tokenInfo);
+                    }
+                }
+
+                // Добавляем блок с инструментами отдельно под статистикой
+                const toolsBlock = createUsedToolsBlock(usedTools);
+                if (toolsBlock) {
+                    synthesisDiv.appendChild(toolsBlock);
+                }
+
+                // Добавляем блок с источниками
+                const sourcesBlock = createSourcesBlock(ragSources);
+                if (sourcesBlock) {
+                    synthesisDiv.appendChild(sourcesBlock);
+                }
+
                 addCopyButtons(synthesisDiv);
                 container.appendChild(synthesisDiv);
 
                 chatContainer.appendChild(container);
             } else {
-                // Обычное сообщение от ассистента
                 const messageDiv = document.createElement('div');
                 messageDiv.className = 'message assistant-message';
 
                 if (title) {
                     const titleElement = document.createElement('h3');
                     titleElement.textContent = title;
+
+                    // Добавляем RAG бейдж если использовался RAG
+                    if (ragUsed) {
+                        const ragBadge = document.createElement('span');
+                        ragBadge.className = 'rag-badge';
+                        ragBadge.textContent = '📚 RAG';
+                        ragBadge.title = ragContext ? `Использован контекст из базы знаний (${ragContext.substring(0, 100)}...)` : 'Использован контекст из базы знаний';
+                        titleElement.appendChild(ragBadge);
+                    }
+
                     titleElement.style.marginTop = '0';
                     titleElement.style.marginBottom = '8px';
                     titleElement.style.fontSize = '16px';
@@ -510,8 +2180,31 @@
                 contentDiv.innerHTML = marked.parse(text);
                 messageDiv.appendChild(contentDiv);
 
+                if (tokenUsage) {
+                    const tokenInfo = createTokenInfo(tokenUsage);
+                    if (tokenInfo) {
+                        messageDiv.appendChild(tokenInfo);
+                    }
+                }
+
+                // Добавляем блок с инструментами отдельно под статистикой
+                const toolsBlock = createUsedToolsBlock(usedTools);
+                if (toolsBlock) {
+                    messageDiv.appendChild(toolsBlock);
+                }
+
+                // Добавляем блок с источниками
+                const sourcesBlock = createSourcesBlock(ragSources);
+                if (sourcesBlock) {
+                    messageDiv.appendChild(sourcesBlock);
+                }
+
                 addCopyButtons(messageDiv);
                 chatContainer.appendChild(messageDiv);
+            }
+
+            if (tokenUsage) {
+                updateTokenStats(tokenUsage);
             }
 
             chatContainer.scrollTop = chatContainer.scrollHeight;
@@ -536,15 +2229,90 @@
             });
         }
 
+        // File handling
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            currentFileName = file.name;
+            fileName.textContent = file.name;
+            fileName.classList.remove('empty');
+            clearFileButton.style.display = 'inline-block';
+
+            try {
+                const text = await file.text();
+                currentFileContent = text;
+
+                const charCount = text.length;
+                const approxTokens = Math.ceil(charCount / 3);
+
+                console.log('Файл загружен:', file.name, 'Размер:', charCount, 'символов, ~', approxTokens, 'токенов');
+
+                if (approxTokens > 4000) {
+                    const warning = `⚠️ Внимание! Файл большой (~${approxTokens.toLocaleString()} токенов).\n\n` +
+                        `Рекомендуемый лимит: ~6000 токенов (с учетом промпта и ответа).\n\n` +
+                        `Если файл слишком большой, API вернет ошибку. Хотите продолжить?`;
+
+                    if (!confirm(warning)) {
+                        clearFile();
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.error('Ошибка чтения файла:', error);
+                alert('Не удалось прочитать файл: ' + error.message);
+                clearFile();
+            }
+        });
+
+        clearFileButton.addEventListener('click', () => {
+            clearFile();
+        });
+
+        function clearFile() {
+            fileInput.value = '';
+            currentFileContent = null;
+            currentFileName = null;
+            fileName.textContent = 'Файл не выбран';
+            fileName.classList.add('empty');
+            clearFileButton.style.display = 'none';
+        }
+
+        // Compression toggles
+        compressContextToggle.addEventListener('change', () => {
+            if (compressContextToggle.checked) {
+                compressSystemPromptToggle.disabled = false;
+                compressSystemPromptLabel.classList.remove('disabled');
+            } else {
+                compressSystemPromptToggle.checked = false;
+                compressSystemPromptToggle.disabled = true;
+                compressSystemPromptLabel.classList.add('disabled');
+            }
+
+            updateMessageCount(false);
+        });
+
+        // Send message
         async function sendMessage() {
+            if (!currentChatId) {
+                alert('Выберите или создайте чат');
+                return;
+            }
+
             const message = messageInput.value.trim();
-            if (!message) return;
+            const hasFile = currentFileContent !== null;
+
+            if (!message && !hasFile) return;
 
             const tempValue = temperatureInput.value.trim();
             const temperature = tempValue !== '' ? parseFloat(tempValue) : 0.6;
-            console.log('Отправляем запрос с температурой:', temperature);
 
-            addMessage(message, true);
+            let displayMessage = message || '(анализ файла)';
+            if (hasFile) {
+                displayMessage = (message || 'Проанализируй содержимое файла') + ` 📎 ${currentFileName}`;
+            }
+
+            addMessage(displayMessage, true);
             messageInput.value = '';
             sendButton.disabled = true;
 
@@ -567,11 +2335,23 @@
             chatContainer.appendChild(loadingDiv);
 
             try {
+                let fullMessage = message;
+                if (hasFile) {
+                    const filePrompt = message || 'Проанализируй содержимое файла и дай краткое резюме.';
+                    fullMessage = `${filePrompt}\n\n--- Содержимое файла "${currentFileName}" ---\n${currentFileContent}\n--- Конец файла ---`;
+                    clearFile();
+                }
+
                 const requestBody = {
-                    message: message,
-                    temperature: temperature
+                    message: fullMessage,
+                    chatId: currentChatId,
+                    temperature: temperature,
+                    compressContext: compressContextToggle.checked,
+                    compressSystemPrompt: compressSystemPromptToggle.checked,
+                    useRAG: useRAGToggle.checked,
+                    ragFilterMode: ragFilterModeSelect.value,
+                    useReranking: useRerankingToggle.checked
                 };
-                console.log('Request body:', JSON.stringify(requestBody));
 
                 const response = await fetch('/api/chat', {
                     method: 'POST',
@@ -583,7 +2363,16 @@
 
                 const data = await response.json();
                 chatContainer.removeChild(loadingDiv);
-                addMessage(data.response, false, data.title, data.isMultiAgent, data.agents);
+                addMessage(data.response, false, data.title, data.isMultiAgent, data.agents, data.tokenUsage, data.usedTools, data.ragUsed, data.ragContext, data.ragSources);
+
+                updateMessageCount();
+
+                if (data.contextWindowUsage) {
+                    updateContextWindowIndicator(data.contextWindowUsage);
+                }
+
+                // Reload chats to update the list
+                await loadChats();
             } catch (error) {
                 chatContainer.removeChild(loadingDiv);
                 addMessage('Ошибка: ' + error.message, false);
@@ -593,6 +2382,534 @@
             }
         }
 
+        // ==================== Knowledge Base Functions ====================
+
+        async function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            fileInput.click();
+        }
+
+        async function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Проверка типа файла
+            const validTypes = ['.txt', '.pdf'];
+            const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+            if (!validTypes.includes(fileExt)) {
+                alert('Поддерживаются только файлы .txt и .pdf');
+                return;
+            }
+
+            // Проверка размера (макс 10MB)
+            if (file.size > 10 * 1024 * 1024) {
+                alert('Файл слишком большой. Максимальный размер: 10MB');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                console.log('Загрузка файла:', file.name);
+                const response = await fetch('/api/knowledge/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    alert(`✅ Файл "${file.name}" успешно загружен в базу знаний!\n\nТеперь я могу использовать эту информацию для ответов на ваши вопросы.`);
+                } else {
+                    alert(`❌ Ошибка загрузки: ${result.error}`);
+                }
+            } catch (error) {
+                console.error('Ошибка при загрузке файла:', error);
+                alert('❌ Ошибка при загрузке файла: ' + error.message);
+            } finally {
+                // Сбрасываем input чтобы можно было загрузить тот же файл снова
+                event.target.value = '';
+            }
+        }
+
+        // ==================== RAG Comparison Functions ====================
+
+        async function sendCompareRequest() {
+            const message = messageInput.value.trim();
+
+            if (!message) {
+                showToast('Введите сообщение для сравнения', 'warning');
+                return;
+            }
+
+            // Отключаем кнопки
+            sendButton.disabled = true;
+            compareButton.disabled = true;
+            messageInput.disabled = true;
+
+            // Показываем индикатор загрузки
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'loading';
+            loadingDiv.innerHTML = '<div class="loading-spinner"></div><div class="loading-text">Сравнение с RAG и без RAG...</div>';
+            chatContainer.appendChild(loadingDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            try {
+                const response = await fetch('/api/chat/compare', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: message,
+                        chatId: currentChatId,
+                        temperature: parseFloat(temperatureInput.value),
+                        compressContext: compressContextToggle.checked,
+                        compressSystemPrompt: compressSystemPromptToggle.checked,
+                        ragFilterMode: ragFilterModeSelect.value,
+                        useReranking: useRerankingToggle.checked
+                    })
+                });
+
+                loadingDiv.remove();
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                // НЕ добавляем сообщения вручную - они уже в БД
+                // Вместо этого перезагружаем историю чата из БД
+                clearChatContainer();
+                try {
+                    const historyResponse = await fetch(`/api/chats/${currentChatId}/messages`);
+                    const historyData = await historyResponse.json();
+
+                    if (historyData.messages && historyData.messages.length > 0) {
+                        historyData.messages.forEach(msg => {
+                            if (msg.role === 'user') {
+                                addMessage(msg.content, true);
+                            } else if (msg.role === 'assistant') {
+                                // Check if this is a comparison result
+                                if (msg.content.startsWith('__COMPARISON__')) {
+                                    try {
+                                        // Extract JSON (remove prefix)
+                                        const jsonStr = msg.content.substring('__COMPARISON__'.length);
+                                        const comparisonData = JSON.parse(jsonStr);
+                                        // Display comparison in side-by-side format
+                                        displayComparisonResult(comparisonData);
+                                    } catch (error) {
+                                        console.error('Failed to parse comparison data:', error);
+                                        // Fallback to regular message if parsing fails
+                                        addMessage(msg.content, false);
+                                    }
+                                } else {
+                                    // Regular assistant message
+                                    addMessage(msg.content, false);
+                                }
+                            }
+                        });
+                    }
+                } catch (error) {
+                    console.error('Failed to reload chat history:', error);
+                }
+
+                // Обновляем счетчик сообщений
+                updateMessageCount();
+
+                // Обновляем статистику токенов (суммируем оба запроса)
+                if (data.withRAG.tokenUsage && data.withoutRAG.tokenUsage) {
+                    const combinedUsage = {
+                        inputTokens: data.withRAG.tokenUsage.inputTokens + data.withoutRAG.tokenUsage.inputTokens,
+                        outputTokens: data.withRAG.tokenUsage.outputTokens + data.withoutRAG.tokenUsage.outputTokens,
+                        totalTokens: data.withRAG.tokenUsage.totalTokens + data.withoutRAG.tokenUsage.totalTokens,
+                        estimatedCostRub: data.withRAG.tokenUsage.estimatedCostRub + data.withoutRAG.tokenUsage.estimatedCostRub,
+                        modelName: data.withRAG.tokenUsage.modelName
+                    };
+                    updateTokenStats(combinedUsage);
+                }
+
+                // Обновляем индикатор контекстного окна (используем данные с RAG)
+                if (data.withRAG.contextWindowUsage) {
+                    updateContextWindowIndicator(data.withRAG.contextWindowUsage);
+                }
+
+                // Перезагружаем список чатов
+                await loadChats();
+
+                // Очищаем input
+                messageInput.value = '';
+                messageInput.focus();
+
+                showToast('Сравнение завершено!', 'success');
+
+            } catch (error) {
+                loadingDiv.remove();
+                console.error('Ошибка при сравнении:', error);
+                addMessage(`Ошибка при сравнении: ${error.message}`, false);
+                showToast('Ошибка при сравнении', 'error');
+            } finally {
+                sendButton.disabled = false;
+                compareButton.disabled = false;
+                messageInput.disabled = false;
+            }
+        }
+
+        function displayComparisonResult(data) {
+            const compareContainer = document.createElement('div');
+            compareContainer.className = 'compare-container';
+
+            // Left column: WITH RAG
+            const withRAGColumn = document.createElement('div');
+            withRAGColumn.className = 'compare-column with-rag';
+
+            const withRAGHeader = document.createElement('div');
+            withRAGHeader.className = 'compare-header';
+            withRAGHeader.innerHTML = '📚 С RAG (База знаний)';
+            withRAGColumn.appendChild(withRAGHeader);
+
+            const withRAGContent = document.createElement('div');
+            withRAGContent.className = 'compare-content';
+            withRAGContent.innerHTML = marked.parse(data.withRAG.response);
+            withRAGContent.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+            withRAGColumn.appendChild(withRAGContent);
+
+            // RAG Context section
+            if (data.ragContext) {
+                const ragContextSection = document.createElement('div');
+                ragContextSection.className = 'compare-rag-context';
+
+                const contextHeader = document.createElement('div');
+                contextHeader.className = 'compare-rag-context-header';
+                contextHeader.innerHTML = `📊 Использованный контекст (${data.ragChunksCount} чанков) <span style="font-size: 10px;">▼</span>`;
+                contextHeader.onclick = () => {
+                    const content = ragContextSection.querySelector('.compare-rag-context-content');
+                    content.classList.toggle('collapsed');
+                    contextHeader.innerHTML = content.classList.contains('collapsed')
+                        ? `📊 Использованный контекст (${data.ragChunksCount} чанков) <span style="font-size: 10px;">▶</span>`
+                        : `📊 Использованный контекст (${data.ragChunksCount} чанков) <span style="font-size: 10px;">▼</span>`;
+                };
+                ragContextSection.appendChild(contextHeader);
+
+                const contextContent = document.createElement('div');
+                contextContent.className = 'compare-rag-context-content';
+                contextContent.textContent = data.ragContext;
+                ragContextSection.appendChild(contextContent);
+
+                withRAGColumn.appendChild(ragContextSection);
+            }
+
+            // RAG Statistics
+            if (data.filteringStats) {
+                const filteringStatsDiv = document.createElement('div');
+                filteringStatsDiv.className = 'rag-stats';
+                filteringStatsDiv.innerHTML = `
+                    <div class="rag-stats-header">📊 Статистика фильтрации</div>
+                    <div class="rag-stats-content">
+                        <div class="stat-row">
+                            <span class="stat-label">Всего чанков:</span>
+                            <span class="stat-value">${data.filteringStats.totalChunks}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">После 1-й фильтрации:</span>
+                            <span class="stat-value">${data.filteringStats.afterPrimaryFilter}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">После 2-й фильтрации:</span>
+                            <span class="stat-value">${data.filteringStats.afterSmartFilter}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Финальных результатов:</span>
+                            <span class="stat-value">${data.filteringStats.finalResults}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Средняя релевантность:</span>
+                            <span class="stat-value">${data.filteringStats.avgSimilarityBefore.toFixed(3)} → ${data.filteringStats.avgSimilarityAfter.toFixed(3)}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Время обработки:</span>
+                            <span class="stat-value">${data.filteringStats.processingTimeMs}ms</span>
+                        </div>
+                    </div>
+                `;
+                withRAGColumn.appendChild(filteringStatsDiv);
+            }
+
+            if (data.rerankingStats) {
+                const rerankingStatsDiv = document.createElement('div');
+                rerankingStatsDiv.className = 'rag-stats';
+                rerankingStatsDiv.innerHTML = `
+                    <div class="rag-stats-header">🔄 Статистика Reranking</div>
+                    <div class="rag-stats-content">
+                        <div class="stat-row">
+                            <span class="stat-label">Кандидатов:</span>
+                            <span class="stat-value">${data.rerankingStats.totalCandidates}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Переранжировано:</span>
+                            <span class="stat-value">${data.rerankingStats.rerankedCount}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Средний скор:</span>
+                            <span class="stat-value">${data.rerankingStats.avgScoreBefore.toFixed(3)} → ${data.rerankingStats.avgScoreAfter.toFixed(3)}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Улучшение:</span>
+                            <span class="stat-value" style="color: #4CAF50; font-weight: 600;">+${data.rerankingStats.scoreImprovement.toFixed(2)}%</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Время обработки:</span>
+                            <span class="stat-value">${data.rerankingStats.processingTimeMs}ms</span>
+                        </div>
+                    </div>
+                `;
+                withRAGColumn.appendChild(rerankingStatsDiv);
+            }
+
+            // Token info
+            if (data.withRAG.tokenUsage) {
+                const tokenInfo = document.createElement('div');
+                tokenInfo.className = 'compare-token-info';
+                tokenInfo.innerHTML = `
+                    <span><strong>Токены:</strong> ${data.withRAG.tokenUsage.totalTokens}</span>
+                    <span><strong>Стоимость:</strong> ${data.withRAG.tokenUsage.estimatedCostRub.toFixed(4)} ₽</span>
+                `;
+                withRAGColumn.appendChild(tokenInfo);
+            }
+
+            // Right column: WITHOUT RAG
+            const withoutRAGColumn = document.createElement('div');
+            withoutRAGColumn.className = 'compare-column without-rag';
+
+            const withoutRAGHeader = document.createElement('div');
+            withoutRAGHeader.className = 'compare-header';
+            withoutRAGHeader.innerHTML = '❌ Без RAG';
+            withoutRAGColumn.appendChild(withoutRAGHeader);
+
+            const withoutRAGContent = document.createElement('div');
+            withoutRAGContent.className = 'compare-content';
+            withoutRAGContent.innerHTML = marked.parse(data.withoutRAG.response);
+            withoutRAGContent.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+            withoutRAGColumn.appendChild(withoutRAGContent);
+
+            // Token info
+            if (data.withoutRAG.tokenUsage) {
+                const tokenInfo = document.createElement('div');
+                tokenInfo.className = 'compare-token-info';
+                tokenInfo.innerHTML = `
+                    <span><strong>Токены:</strong> ${data.withoutRAG.tokenUsage.totalTokens}</span>
+                    <span><strong>Стоимость:</strong> ${data.withoutRAG.tokenUsage.estimatedCostRub.toFixed(4)} ₽</span>
+                `;
+                withoutRAGColumn.appendChild(tokenInfo);
+            }
+
+            compareContainer.appendChild(withRAGColumn);
+            compareContainer.appendChild(withoutRAGColumn);
+
+            chatContainer.appendChild(compareContainer);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // ==================== Knowledge Base Modal Functions ====================
+
+        function openKnowledgeBaseModal() {
+            knowledgeBaseModal.classList.add('active');
+            loadKnowledgeBaseStats();
+            loadKnowledgeBaseDocuments();
+        }
+
+        function closeKnowledgeBaseModal() {
+            knowledgeBaseModal.classList.remove('active');
+        }
+
+        async function loadKnowledgeBaseStats() {
+            try {
+                const response = await fetch('/api/knowledge/documents');
+                const data = await response.json();
+
+                kbTotalDocuments.textContent = data.totalDocuments;
+                kbTotalChunks.textContent = data.totalChunks;
+            } catch (error) {
+                console.error('Ошибка загрузки статистики:', error);
+            }
+        }
+
+        async function loadKnowledgeBaseDocuments() {
+            try {
+                const response = await fetch('/api/knowledge/documents');
+                const data = await response.json();
+
+                if (data.documents.length === 0) {
+                    kbDocumentsList.innerHTML = `
+                        <div class="kb-empty-state">
+                            <div class="kb-empty-icon">📭</div>
+                            <div>База знаний пуста. Загрузите первый документ!</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                kbDocumentsList.innerHTML = '';
+                data.documents.forEach(doc => {
+                    const docItem = document.createElement('div');
+                    docItem.className = 'kb-document-item';
+
+                    const uploadDate = new Date(doc.uploadDate);
+                    const formattedDate = uploadDate.toLocaleString('ru-RU');
+
+                    docItem.innerHTML = `
+                        <div class="kb-document-info">
+                            <div class="kb-document-name">${doc.filename}</div>
+                            <div class="kb-document-meta">
+                                <span>Тип: ${doc.fileType}</span>
+                                <span>Чанков: ${doc.totalChunks}</span>
+                                <span>Загружен: ${formattedDate}</span>
+                            </div>
+                        </div>
+                        <div class="kb-document-actions">
+                            <button class="kb-action-button delete" onclick="deleteDocument(${doc.id})">
+                                🗑️ Удалить
+                            </button>
+                        </div>
+                    `;
+
+                    kbDocumentsList.appendChild(docItem);
+                });
+            } catch (error) {
+                console.error('Ошибка загрузки документов:', error);
+                kbDocumentsList.innerHTML = '<div class="kb-empty-state">Ошибка загрузки документов</div>';
+            }
+        }
+
+        async function uploadDocumentToKB(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                showToast(`Загрузка ${file.name}...`, 'info');
+
+                const response = await fetch('/api/knowledge/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                showToast(`✅ ${file.name} успешно загружен!`, 'success');
+
+                // Обновляем список
+                loadKnowledgeBaseStats();
+                loadKnowledgeBaseDocuments();
+            } catch (error) {
+                console.error('Ошибка загрузки документа:', error);
+                showToast(`❌ Ошибка загрузки ${file.name}`, 'error');
+            }
+        }
+
+        async function deleteDocument(documentId) {
+            if (!confirm('Вы уверены что хотите удалить этот документ?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/knowledge/documents/${documentId}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                showToast('Документ удален', 'success');
+                loadKnowledgeBaseStats();
+                loadKnowledgeBaseDocuments();
+            } catch (error) {
+                console.error('Ошибка удаления документа:', error);
+                showToast('Ошибка удаления документа', 'error');
+            }
+        }
+
+        async function clearKnowledgeBase() {
+            if (!confirm('⚠️ ВНИМАНИЕ! Это удалит ВСЕ документы и чанки из базы знаний.\n\nВы уверены что хотите продолжить?')) {
+                return;
+            }
+
+            try {
+                showToast('Очистка базы знаний...', 'info');
+
+                const response = await fetch('/api/knowledge/clear', {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                showToast(data.message || 'База знаний очищена', 'success');
+                loadKnowledgeBaseStats();
+                loadKnowledgeBaseDocuments();
+            } catch (error) {
+                console.error('Ошибка очистки базы знаний:', error);
+                showToast('Ошибка очистки базы знаний', 'error');
+            }
+        }
+
+        // Обработчик кнопки очистки
+        document.getElementById('clearKnowledgeBaseButton')?.addEventListener('click', clearKnowledgeBase);
+
+        // Drag & Drop для загрузки файлов
+        kbUploadArea.addEventListener('click', () => {
+            kbFileInput.click();
+        });
+
+        kbFileInput.addEventListener('change', (e) => {
+            const files = e.target.files;
+            if (files.length > 0) {
+                Array.from(files).forEach(file => {
+                    uploadDocumentToKB(file);
+                });
+            }
+            kbFileInput.value = ''; // Reset
+        });
+
+        kbUploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            kbUploadArea.classList.add('drag-over');
+        });
+
+        kbUploadArea.addEventListener('dragleave', () => {
+            kbUploadArea.classList.remove('drag-over');
+        });
+
+        kbUploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            kbUploadArea.classList.remove('drag-over');
+
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                Array.from(files).forEach(file => {
+                    if (file.name.endsWith('.pdf') || file.name.endsWith('.txt')) {
+                        uploadDocumentToKB(file);
+                    } else {
+                        showToast(`❌ ${file.name}: неподдерживаемый формат`, 'error');
+                    }
+                });
+            }
+        });
+
+        // Event listeners
+        newChatButton.addEventListener('click', createNewChat);
+        knowledgeBaseButton.addEventListener('click', openKnowledgeBaseModal);
+        closeModalButton.addEventListener('click', closeKnowledgeBaseModal);
+        compareButton.addEventListener('click', sendCompareRequest);
+        fileInput.addEventListener('change', handleFileSelect);
         sendButton.addEventListener('click', sendMessage);
         messageInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
@@ -600,7 +2917,18 @@
             }
         });
 
-        messageInput.focus();
+        // Close modal on overlay click
+        knowledgeBaseModal.addEventListener('click', (e) => {
+            if (e.target === knowledgeBaseModal) {
+                closeKnowledgeBaseModal();
+            }
+        });
+
+        // Initialize app
+        init();
     </script>
+
+    <!-- Toast notifications container -->
+    <div class="toast-container" id="toastContainer"></div>
 </body>
 </html>

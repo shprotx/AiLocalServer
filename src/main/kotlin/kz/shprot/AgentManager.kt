@@ -21,6 +21,28 @@ class AgentManager(
     private val baseClient = DeepSeekClient(apiKey, model)
     private val jsonParser = Json { ignoreUnknownKeys = true }
 
+    // Вспомогательная функция для суммирования Usage
+    private fun sumUsage(usages: List<Usage?>): Usage? {
+        val validUsages = usages.filterNotNull()
+        if (validUsages.isEmpty()) return null
+
+        var totalInput = 0
+        var totalCompletion = 0
+        var totalTokens = 0
+
+        validUsages.forEach { usage ->
+            totalInput += usage.inputTextTokens.toIntOrNull() ?: 0
+            totalCompletion += usage.completionTokens.toIntOrNull() ?: 0
+            totalTokens += usage.totalTokens.toIntOrNull() ?: 0
+        }
+
+        return Usage(
+            inputTextTokens = totalInput.toString(),
+            completionTokens = totalCompletion.toString(),
+            totalTokens = totalTokens.toString()
+        )
+    }
+
     /**
      * Анализирует вопрос и определяет нужны ли специалисты
      */
@@ -137,6 +159,23 @@ class AgentManager(
         history: List<Message>,
         previousResponses: List<AgentResponse>
     ): AgentResponse {
+        println("📋 AGENT ${agent.role} - История для консультации:")
+        println("   Количество сообщений в history: ${history.size}")
+        history.forEachIndexed { index, msg ->
+            if (msg.role == "system") {
+                val hasRAGContext = msg.text.contains("📚 КОНТЕКСТ ИЗ БАЗЫ ЗНАНИЙ")
+                println("   [$index] role=${msg.role}, length=${msg.text.length}, hasRAGContext=$hasRAGContext")
+                if (hasRAGContext) {
+                    println("        ✅ RAG контекст ПРИСУТСТВУЕТ в system message!")
+                } else {
+                    println("        ❌ RAG контекста НЕТ в system message!")
+                }
+            } else {
+                val preview = msg.text.take(100).replace("\n", " ")
+                println("   [$index] role=${msg.role}, text_preview='$preview...'")
+            }
+        }
+
         val messages = buildList {
             // System prompt специалиста
             add(Message(role = "system", text = agent.systemPrompt))
@@ -159,16 +198,16 @@ class AgentManager(
             add(Message(role = "user", text = userMessage))
         }
 
-        val rawResponse = baseClient.sendMessage(messages, agent.temperature)
-        println("AGENT ${agent.role} (температура ${agent.temperature}) RAW RESPONSE: $rawResponse")
+        val messageWithUsage = baseClient.sendMessageWithUsage(messages, agent.temperature)
+        println("AGENT ${agent.role} (температура ${agent.temperature}) RAW RESPONSE: ${messageWithUsage.text}")
 
         // Парсим структурированный ответ агента
         val structuredResponse = runCatching {
-            jsonParser.decodeFromString<LLMStructuredResponse>(rawResponse)
+            jsonParser.decodeFromString<LLMStructuredResponse>(messageWithUsage.text)
         }.getOrElse {
             LLMStructuredResponse(
                 title = agent.role,
-                message = rawResponse
+                message = messageWithUsage.text
             )
         }
 
@@ -176,7 +215,8 @@ class AgentManager(
             agentId = agent.id,
             agentRole = agent.role,
             content = structuredResponse.message,
-            timestamp = System.currentTimeMillis()
+            timestamp = System.currentTimeMillis(),
+            usage = messageWithUsage.usage
         )
     }
 
@@ -188,7 +228,7 @@ class AgentManager(
         agentResponses: List<AgentResponse>,
         history: List<Message>,
         temperature: Double = 0.6
-    ): LLMStructuredResponse {
+    ): StructuredResponseWithUsage {
         val synthesisPrompt = """
             Ты - координатор команды специалистов. Твоя задача - собрать финальный ответ из консультаций экспертов.
 
@@ -215,27 +255,24 @@ class AgentManager(
             add(Message(role = "user", text = "Собери финальный ответ"))
         }
 
-        val rawResponse = baseClient.sendMessage(messages, temperature)
-        println("SYNTHESIS RESPONSE (температура $temperature): $rawResponse")
+        val result = baseClient.sendMessageWithHistoryAndUsage(messages, temperature)
+        println("SYNTHESIS RESPONSE (температура $temperature): ${result.response.message}")
 
-        return runCatching {
-            jsonParser.decodeFromString<LLMStructuredResponse>(rawResponse)
-        }.getOrElse {
-            LLMStructuredResponse(
-                title = "Заключение экспертов",
-                message = rawResponse
-            )
-        }
+        return result
     }
 
     /**
      * Главный метод обработки сообщения (с автоматическим анализом + поддержкой явного запроса)
      */
     suspend fun processMessage(
-        sessionId: String,
+        chatId: Int,
         userMessage: String,
         history: List<Message>,
-        temperature: Double = 0.6
+        temperature: Double = 0.6,
+        compressContext: Boolean = false,
+        compressSystemPrompt: Boolean = false,
+        ragContext: String? = null,
+        enrichedMessages: List<Message>? = null  // Обогащенные RAG сообщения
     ): MultiAgentResponse {
         // Проверяем явный запрос на создание специалистов
         val explicitRequest = detectExplicitAgentRequest(userMessage)
@@ -252,15 +289,23 @@ class AgentManager(
         if (!analysis.needsSpecialists) {
             // Простой ответ от базового агента
             println("Используется базовый агент, температура $temperature")
-            val response = baseClient.sendMessageWithHistory(
-                chatHistory.buildMessagesWithHistory(sessionId, userMessage),
+            val messages = if (compressContext) {
+                chatHistory.buildMessagesWithCompression(
+                    chatId, userMessage, compressContext, compressSystemPrompt
+                )
+            } else {
+                chatHistory.buildMessagesWithHistory(chatId, userMessage, ragContext)
+            }
+            val result = baseClient.sendMessageWithHistoryAndUsage(
+                messages,
                 temperature
             )
             return MultiAgentResponse(
                 isMultiAgent = false,
                 agentResponses = emptyList(),
-                synthesis = response.message,
-                title = response.title
+                synthesis = result.response.message,
+                title = result.response.title,
+                totalUsage = result.usage
             )
         }
 
@@ -273,20 +318,53 @@ class AgentManager(
 
         // Последовательная консультация
         val agentResponses = mutableListOf<AgentResponse>()
+        // Используем enrichedMessages если доступны, иначе history
+        val messagesForAgents = enrichedMessages?.filter { it.role != "user" } ?: history
+
+        println("=== Подготовка сообщений для агентов ===")
+        println("enrichedMessages != null: ${enrichedMessages != null}")
+        if (enrichedMessages != null) {
+            println("enrichedMessages.size: ${enrichedMessages.size}")
+            enrichedMessages.forEachIndexed { index, msg ->
+                if (msg.role == "system") {
+                    val hasRAGContext = msg.text.contains("📚 КОНТЕКСТ ИЗ БАЗЫ ЗНАНИЙ")
+                    println("  enrichedMessages[$index]: role=${msg.role}, length=${msg.text.length}, hasRAGContext=$hasRAGContext")
+                } else {
+                    val preview = msg.text.take(80).replace("\n", " ")
+                    println("  enrichedMessages[$index]: role=${msg.role}, preview='$preview...'")
+                }
+            }
+        }
+        println("messagesForAgents.size: ${messagesForAgents.size}")
+        messagesForAgents.forEachIndexed { index, msg ->
+            if (msg.role == "system") {
+                val hasRAGContext = msg.text.contains("📚 КОНТЕКСТ ИЗ БАЗЫ ЗНАНИЙ")
+                println("  messagesForAgents[$index]: role=${msg.role}, length=${msg.text.length}, hasRAGContext=$hasRAGContext")
+            } else {
+                val preview = msg.text.take(80).replace("\n", " ")
+                println("  messagesForAgents[$index]: role=${msg.role}, preview='$preview...'")
+            }
+        }
+
         for (agent in agents) {
             println("Consulting ${agent.role}...")
-            val response = consultAgent(agent, userMessage, history, agentResponses)
+            val response = consultAgent(agent, userMessage, messagesForAgents, agentResponses)
             agentResponses.add(response)
         }
 
         // Синтез финального ответа
-        val synthesis = synthesizeResponse(userMessage, agentResponses, history, temperature)
+        val synthesisResult = synthesizeResponse(userMessage, agentResponses, history, temperature)
+
+        // Суммируем все Usage (от анализа, агентов и синтеза)
+        val allUsages = agentResponses.mapNotNull { it.usage } + listOfNotNull(synthesisResult.usage)
+        val totalUsage = sumUsage(allUsages)
 
         return MultiAgentResponse(
             isMultiAgent = true,
             agentResponses = agentResponses,
-            synthesis = synthesis.message,
-            title = synthesis.title
+            synthesis = synthesisResult.response.message,
+            title = synthesisResult.response.title,
+            totalUsage = totalUsage
         )
     }
 
