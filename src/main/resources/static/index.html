@@ -70,7 +70,7 @@
             gap: 6px;
         }
 
-        .new-chat-button:hover, .knowledge-base-button:hover {
+        .new-chat-button:hover, .knowledge-base-button:hover, .code-review-button:hover {
             background: rgba(255,255,255,0.3);
         }
 
@@ -83,6 +83,19 @@
         .knowledge-base-button::before {
             content: '📚';
             font-size: 16px;
+        }
+
+        .code-review-button {
+            width: 100%;
+            padding: 10px 12px;
+            background: rgba(255,255,255,0.2);
+            color: #FFFFFF;
+            border: 1px solid rgba(255,255,255,0.4);
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
         }
 
         /* Project selector styles */
@@ -1453,6 +1466,9 @@
                     <button class="new-chat-button" id="newChatButton">Новый чат</button>
                     <button class="knowledge-base-button" id="knowledgeBaseButton">База знаний</button>
                 </div>
+                <div class="sidebar-buttons" style="margin-top: 8px;">
+                    <button class="code-review-button" id="codeReviewButton">🔍 Code Review</button>
+                </div>
             </div>
 
             <!-- Project Selector -->
@@ -1655,6 +1671,83 @@
         </div>
     </div>
 
+    <!-- Code Review Modal -->
+    <div class="modal-overlay" id="codeReviewModal">
+        <div class="modal-container" style="max-width: 900px;">
+            <div class="modal-header" style="background: #2E7D32;">
+                <div class="modal-title">
+                    <span>🔍</span>
+                    <span>Code Review PR</span>
+                </div>
+                <button class="modal-close" id="closeReviewModalButton">×</button>
+            </div>
+            <div class="modal-body">
+                <!-- PR Input Section -->
+                <div class="review-input-section" id="reviewInputSection">
+                    <h3 style="margin-bottom: 16px; color: rgba(0,0,0,0.87);">Введите данные Pull Request</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+                        <div>
+                            <label style="display: block; font-size: 12px; color: rgba(0,0,0,0.54); margin-bottom: 4px;">Owner (username/org)</label>
+                            <input type="text" id="reviewOwner" placeholder="например: arturshprot" style="width: 100%; padding: 10px 12px; border: 1px solid #E0E0E0; border-radius: 4px; font-size: 14px;">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 12px; color: rgba(0,0,0,0.54); margin-bottom: 4px;">Repository</label>
+                            <input type="text" id="reviewRepo" placeholder="например: AiLocalServer" style="width: 100%; padding: 10px 12px; border: 1px solid #E0E0E0; border-radius: 4px; font-size: 14px;">
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; font-size: 12px; color: rgba(0,0,0,0.54); margin-bottom: 4px;">PR Number</label>
+                        <input type="number" id="reviewPRNumber" placeholder="например: 123" style="width: 100%; padding: 10px 12px; border: 1px solid #E0E0E0; border-radius: 4px; font-size: 14px;">
+                    </div>
+
+                    <!-- Options -->
+                    <div style="display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                            <input type="checkbox" id="reviewUseRAG" checked>
+                            <span style="font-size: 14px;">📚 Использовать RAG (документация)</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                            <input type="checkbox" id="reviewPostToGitHub">
+                            <span style="font-size: 14px;">📤 Опубликовать на GitHub</span>
+                        </label>
+                    </div>
+
+                    <!-- Load PRs Button -->
+                    <div style="display: flex; gap: 12px;">
+                        <button id="loadPRsButton" style="padding: 10px 20px; background: #1976D2; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                            📋 Загрузить список PR
+                        </button>
+                        <button id="startReviewButton" style="padding: 10px 20px; background: #2E7D32; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 500;">
+                            🔍 Начать Code Review
+                        </button>
+                    </div>
+                </div>
+
+                <!-- PR List Section (hidden by default) -->
+                <div id="prListSection" style="display: none; margin-top: 20px;">
+                    <h4 style="margin-bottom: 12px; color: rgba(0,0,0,0.87);">Открытые Pull Requests:</h4>
+                    <div id="prList" style="max-height: 200px; overflow-y: auto; border: 1px solid #E0E0E0; border-radius: 4px;">
+                        <!-- PRs will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- Review Progress Section (hidden by default) -->
+                <div id="reviewProgressSection" style="display: none; margin-top: 20px; text-align: center; padding: 40px;">
+                    <div style="font-size: 48px; margin-bottom: 16px;">🔄</div>
+                    <div style="font-size: 16px; color: rgba(0,0,0,0.87);">Анализирую Pull Request...</div>
+                    <div style="font-size: 12px; color: rgba(0,0,0,0.54); margin-top: 8px;">Это может занять 30-60 секунд</div>
+                </div>
+
+                <!-- Review Result Section (hidden by default) -->
+                <div id="reviewResultSection" style="display: none; margin-top: 20px;">
+                    <div id="reviewResultContent">
+                        <!-- Review result will be rendered here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <script>
@@ -1685,6 +1778,24 @@
         const kbDocumentsList = document.getElementById('kbDocumentsList');
         const kbTotalDocuments = document.getElementById('kbTotalDocuments');
         const kbTotalChunks = document.getElementById('kbTotalChunks');
+
+        // Code Review Modal Elements
+        const codeReviewButton = document.getElementById('codeReviewButton');
+        const codeReviewModal = document.getElementById('codeReviewModal');
+        const closeReviewModalButton = document.getElementById('closeReviewModalButton');
+        const reviewOwner = document.getElementById('reviewOwner');
+        const reviewRepo = document.getElementById('reviewRepo');
+        const reviewPRNumber = document.getElementById('reviewPRNumber');
+        const reviewUseRAG = document.getElementById('reviewUseRAG');
+        const reviewPostToGitHub = document.getElementById('reviewPostToGitHub');
+        const loadPRsButton = document.getElementById('loadPRsButton');
+        const startReviewButton = document.getElementById('startReviewButton');
+        const prListSection = document.getElementById('prListSection');
+        const prList = document.getElementById('prList');
+        const reviewProgressSection = document.getElementById('reviewProgressSection');
+        const reviewResultSection = document.getElementById('reviewResultSection');
+        const reviewResultContent = document.getElementById('reviewResultContent');
+        const reviewInputSection = document.getElementById('reviewInputSection');
 
         // State
         let currentChatId = null;
@@ -3129,6 +3240,301 @@
 
         // Обработчик кнопки очистки
         document.getElementById('clearKnowledgeBaseButton')?.addEventListener('click', clearKnowledgeBase);
+
+        // ==================== Code Review Modal Functions ====================
+
+        function openCodeReviewModal() {
+            codeReviewModal.classList.add('active');
+            // Reset state
+            reviewInputSection.style.display = 'block';
+            prListSection.style.display = 'none';
+            reviewProgressSection.style.display = 'none';
+            reviewResultSection.style.display = 'none';
+        }
+
+        function closeCodeReviewModal() {
+            codeReviewModal.classList.remove('active');
+        }
+
+        async function loadPullRequests() {
+            const owner = reviewOwner.value.trim();
+            const repo = reviewRepo.value.trim();
+
+            if (!owner || !repo) {
+                showToast('Введите owner и repo', 'error');
+                return;
+            }
+
+            try {
+                loadPRsButton.disabled = true;
+                loadPRsButton.textContent = '⏳ Загрузка...';
+
+                const response = await fetch(`/api/review/prs/${owner}/${repo}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (data.pullRequests.length === 0) {
+                    prList.innerHTML = '<div style="padding: 16px; text-align: center; color: rgba(0,0,0,0.54);">Нет открытых PR</div>';
+                } else {
+                    prList.innerHTML = data.pullRequests.map(pr => `
+                        <div class="pr-item" onclick="selectPR(${pr.number})" style="padding: 12px 16px; border-bottom: 1px solid #E0E0E0; cursor: pointer; transition: background 0.2s;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <strong>#${pr.number}</strong> ${pr.title}
+                                </div>
+                                <div style="font-size: 12px; color: rgba(0,0,0,0.54);">
+                                    +${pr.additions}/-${pr.deletions}
+                                </div>
+                            </div>
+                            <div style="font-size: 12px; color: rgba(0,0,0,0.54); margin-top: 4px;">
+                                by ${pr.author} • ${pr.headRef} → ${pr.baseRef}
+                            </div>
+                        </div>
+                    `).join('');
+                }
+
+                prListSection.style.display = 'block';
+            } catch (error) {
+                console.error('Ошибка загрузки PR:', error);
+                showToast('Ошибка загрузки списка PR', 'error');
+            } finally {
+                loadPRsButton.disabled = false;
+                loadPRsButton.textContent = '📋 Загрузить список PR';
+            }
+        }
+
+        function selectPR(prNumber) {
+            reviewPRNumber.value = prNumber;
+            // Highlight selected
+            document.querySelectorAll('.pr-item').forEach(item => {
+                item.style.background = '';
+            });
+            event.currentTarget.style.background = '#E3F2FD';
+        }
+
+        async function startCodeReview() {
+            const owner = reviewOwner.value.trim();
+            const repo = reviewRepo.value.trim();
+            const pullNumber = parseInt(reviewPRNumber.value);
+
+            if (!owner || !repo || !pullNumber) {
+                showToast('Заполните все поля', 'error');
+                return;
+            }
+
+            try {
+                // Show progress
+                reviewInputSection.style.display = 'none';
+                prListSection.style.display = 'none';
+                reviewProgressSection.style.display = 'block';
+                reviewResultSection.style.display = 'none';
+
+                const response = await fetch('/api/review', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        owner,
+                        repo,
+                        pullNumber,
+                        useRAG: reviewUseRAG.checked,
+                        postToGitHub: reviewPostToGitHub.checked,
+                        temperature: 0.3
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (data.success && data.review) {
+                    renderReviewResult(data);
+                    reviewProgressSection.style.display = 'none';
+                    reviewResultSection.style.display = 'block';
+                } else {
+                    throw new Error(data.error || 'Unknown error');
+                }
+            } catch (error) {
+                console.error('Ошибка Code Review:', error);
+                showToast('Ошибка: ' + error.message, 'error');
+                // Return to input
+                reviewInputSection.style.display = 'block';
+                reviewProgressSection.style.display = 'none';
+            }
+        }
+
+        function renderReviewResult(data) {
+            const review = data.review;
+            const scoreEmoji = review.overallScore >= 9 ? '🌟' :
+                              review.overallScore >= 7 ? '✅' :
+                              review.overallScore >= 5 ? '⚠️' :
+                              review.overallScore >= 3 ? '🟠' : '🔴';
+
+            const recommendationText = review.recommendation === 'approve' ? '✅ Approve' :
+                                      review.recommendation === 'request_changes' ? '🔄 Request Changes' :
+                                      '💬 Comment';
+
+            // Group issues by severity
+            const issuesBySeverity = {
+                critical: review.issues.filter(i => i.severity === 'critical'),
+                warning: review.issues.filter(i => i.severity === 'warning'),
+                suggestion: review.issues.filter(i => i.severity === 'suggestion'),
+                info: review.issues.filter(i => i.severity === 'info')
+            };
+
+            reviewResultContent.innerHTML = `
+                <div style="background: #F5F5F5; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+                    <h3 style="margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+                        <span>${scoreEmoji}</span>
+                        <span>PR #${review.pullNumber}: ${review.prTitle}</span>
+                    </h3>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px;">
+                        <div style="text-align: center; padding: 12px; background: white; border-radius: 4px;">
+                            <div style="font-size: 24px; font-weight: 600; color: #1976D2;">${review.overallScore}/10</div>
+                            <div style="font-size: 11px; color: rgba(0,0,0,0.54);">Оценка</div>
+                        </div>
+                        <div style="text-align: center; padding: 12px; background: white; border-radius: 4px;">
+                            <div style="font-size: 16px; font-weight: 500;">${recommendationText}</div>
+                            <div style="font-size: 11px; color: rgba(0,0,0,0.54);">Рекомендация</div>
+                        </div>
+                        <div style="text-align: center; padding: 12px; background: white; border-radius: 4px;">
+                            <div style="font-size: 16px; font-weight: 500;">+${review.additions}/-${review.deletions}</div>
+                            <div style="font-size: 11px; color: rgba(0,0,0,0.54);">Изменений</div>
+                        </div>
+                        <div style="text-align: center; padding: 12px; background: white; border-radius: 4px;">
+                            <div style="font-size: 16px; font-weight: 500;">${review.issues.length}</div>
+                            <div style="font-size: 11px; color: rgba(0,0,0,0.54);">Проблем</div>
+                        </div>
+                    </div>
+                    <p style="color: rgba(0,0,0,0.87); line-height: 1.5;">${review.summary}</p>
+                    ${data.postedToGitHub ? '<div style="margin-top: 12px; padding: 8px 12px; background: #E8F5E9; border-radius: 4px; color: #2E7D32; font-size: 13px;">✅ Опубликовано на GitHub</div>' : ''}
+                </div>
+
+                ${renderIssuesSection('🔴 Критические проблемы', issuesBySeverity.critical, '#FFEBEE')}
+                ${renderIssuesSection('🟠 Предупреждения', issuesBySeverity.warning, '#FFF3E0')}
+                ${renderIssuesSection('🟡 Предложения', issuesBySeverity.suggestion, '#FFFDE7')}
+                ${renderIssuesSection('🔵 Информация', issuesBySeverity.info, '#E3F2FD')}
+
+                ${review.positives.length > 0 ? `
+                    <div style="margin-top: 20px;">
+                        <h4 style="margin-bottom: 12px; color: #2E7D32;">✅ Положительные аспекты</h4>
+                        <ul style="margin: 0; padding-left: 20px;">
+                            ${review.positives.map(p => `<li style="margin-bottom: 4px;">${p}</li>`).join('')}
+                        </ul>
+                    </div>
+                ` : ''}
+
+                ${review.ragUsed && review.ragSources ? `
+                    <div style="margin-top: 20px; padding: 12px; background: #F3E5F5; border-radius: 4px;">
+                        <div style="font-size: 12px; color: rgba(0,0,0,0.54); margin-bottom: 8px;">📚 RAG источники:</div>
+                        <div style="font-size: 12px;">${review.ragSources.join(', ')}</div>
+                    </div>
+                ` : ''}
+
+                <div style="margin-top: 20px; display: flex; gap: 12px;">
+                    <button onclick="resetCodeReviewModal()" style="padding: 10px 20px; background: #1976D2; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        ← Новый Review
+                    </button>
+                    ${!data.postedToGitHub ? `
+                        <button onclick="postReviewToGitHub()" style="padding: 10px 20px; background: #2E7D32; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            📤 Опубликовать на GitHub
+                        </button>
+                    ` : ''}
+                </div>
+
+                <div style="margin-top: 16px; font-size: 12px; color: rgba(0,0,0,0.54);">
+                    Время анализа: ${review.reviewTime}ms | Автор PR: ${review.prAuthor}
+                </div>
+            `;
+        }
+
+        function renderIssuesSection(title, issues, bgColor) {
+            if (!issues || issues.length === 0) return '';
+
+            return `
+                <div style="margin-top: 20px;">
+                    <h4 style="margin-bottom: 12px;">${title}</h4>
+                    ${issues.map(issue => `
+                        <div style="background: ${bgColor}; border-radius: 4px; padding: 12px; margin-bottom: 8px;">
+                            <div style="font-weight: 500; margin-bottom: 4px;">${issue.title}</div>
+                            <div style="font-size: 12px; color: rgba(0,0,0,0.54); margin-bottom: 8px;">
+                                📍 ${issue.file}${issue.line ? ':' + issue.line : ''} | 🏷️ ${issue.category}
+                            </div>
+                            <div style="font-size: 14px; line-height: 1.5;">${issue.description}</div>
+                            ${issue.suggestion ? `
+                                <div style="margin-top: 8px; padding: 8px; background: rgba(255,255,255,0.5); border-radius: 4px; font-size: 13px;">
+                                    💡 <strong>Предложение:</strong> ${issue.suggestion}
+                                </div>
+                            ` : ''}
+                            ${issue.codeSnippet ? `
+                                <pre style="margin-top: 8px; padding: 8px; background: #263238; color: #E0E0E0; border-radius: 4px; font-size: 12px; overflow-x: auto;"><code>${issue.codeSnippet}</code></pre>
+                            ` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function resetCodeReviewModal() {
+            reviewInputSection.style.display = 'block';
+            prListSection.style.display = 'none';
+            reviewProgressSection.style.display = 'none';
+            reviewResultSection.style.display = 'none';
+        }
+
+        async function postReviewToGitHub() {
+            const owner = reviewOwner.value.trim();
+            const repo = reviewRepo.value.trim();
+            const pullNumber = parseInt(reviewPRNumber.value);
+
+            try {
+                showToast('Публикация на GitHub...', 'info');
+
+                const response = await fetch('/api/review/post', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        owner,
+                        repo,
+                        pullNumber,
+                        useRAG: reviewUseRAG.checked,
+                        postToGitHub: true,
+                        temperature: 0.3
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to post to GitHub');
+                }
+
+                const data = await response.json();
+                if (data.postedToGitHub) {
+                    showToast('Опубликовано на GitHub!', 'success');
+                    renderReviewResult(data);
+                }
+            } catch (error) {
+                console.error('Ошибка публикации:', error);
+                showToast('Ошибка публикации на GitHub', 'error');
+            }
+        }
+
+        // Code Review Event Listeners
+        codeReviewButton.addEventListener('click', openCodeReviewModal);
+        closeReviewModalButton.addEventListener('click', closeCodeReviewModal);
+        loadPRsButton.addEventListener('click', loadPullRequests);
+        startReviewButton.addEventListener('click', startCodeReview);
+
+        // Close modal on overlay click
+        codeReviewModal.addEventListener('click', (e) => {
+            if (e.target === codeReviewModal) {
+                closeCodeReviewModal();
+            }
+        });
 
         // Drag & Drop для загрузки файлов
         kbUploadArea.addEventListener('click', () => {

@@ -420,3 +420,98 @@ data class DocsListResponse(
     val docs: List<DocFileInfo>,
     val projectId: String? = null
 )
+
+// ==================== CODE REVIEW Models ====================
+
+/**
+ * Запрос на code review PR
+ */
+@Serializable
+data class CodeReviewRequest(
+    val owner: String,           // Владелец репозитория (username или organization)
+    val repo: String,            // Название репозитория
+    val pullNumber: Int,         // Номер PR
+    val useRAG: Boolean = true,  // Использовать RAG для контекста из документации
+    val postToGitHub: Boolean = false,  // Автоматически постить результат на GitHub
+    val temperature: Double = 0.3       // Температура для LLM (низкая для точности)
+)
+
+/**
+ * Проблема найденная в коде
+ */
+@Serializable
+data class CodeIssue(
+    val severity: String,        // "critical", "warning", "suggestion", "info"
+    val category: String,        // "bug", "security", "performance", "style", "logic", "best-practice"
+    val file: String,            // Путь к файлу
+    val line: Int?,              // Номер строки (если применимо)
+    val endLine: Int? = null,    // Конец диапазона строк (для multi-line issues)
+    val title: String,           // Краткое описание проблемы
+    val description: String,     // Подробное описание
+    val suggestion: String? = null,  // Предложение по исправлению
+    val codeSnippet: String? = null  // Фрагмент проблемного кода
+)
+
+/**
+ * Результат code review
+ */
+@Serializable
+data class CodeReviewResult(
+    val owner: String,
+    val repo: String,
+    val pullNumber: Int,
+    val prTitle: String,
+    val prAuthor: String,
+    val filesChanged: Int,
+    val additions: Int,
+    val deletions: Int,
+    val summary: String,         // Общее резюме ревью
+    val issues: List<CodeIssue>, // Найденные проблемы
+    val positives: List<String>, // Положительные аспекты кода
+    val overallScore: Int,       // Оценка от 1 до 10
+    val recommendation: String,  // "approve", "request_changes", "comment"
+    val ragUsed: Boolean,        // Был ли использован RAG
+    val ragSources: List<String>? = null,  // Источники из RAG
+    val reviewTime: Long         // Время ревью в мс
+)
+
+/**
+ * Ответ на запрос code review
+ */
+@Serializable
+data class CodeReviewResponse(
+    val success: Boolean,
+    val review: CodeReviewResult? = null,
+    val error: String? = null,
+    val postedToGitHub: Boolean = false,
+    val gitHubCommentId: Long? = null
+)
+
+/**
+ * Информация о PR для отображения в UI
+ */
+@Serializable
+data class PRInfo(
+    val number: Int,
+    val title: String,
+    val author: String,
+    val state: String,
+    val createdAt: String,
+    val updatedAt: String,
+    val filesChanged: Int,
+    val additions: Int,
+    val deletions: Int,
+    val baseRef: String,
+    val headRef: String,
+    val url: String
+)
+
+/**
+ * Список PR для выбора
+ */
+@Serializable
+data class PRListResponse(
+    val owner: String,
+    val repo: String,
+    val pullRequests: List<PRInfo>
+)
