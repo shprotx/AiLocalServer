@@ -16,6 +16,9 @@ import kz.shprot.commands.CommandHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import java.io.File
 
 // Вспомогательная функция для расчета стоимости
@@ -191,6 +194,9 @@ fun main() {
     val contextCompressor = ContextCompressor(llmClient)
     val agentManager = AgentManager(apiKey, modelUri, chatHistory)
 
+    // Code Review Service - для автоматизированного ревью PR
+    // Будет инициализирован после запуска MCP серверов
+
     // MCP Manager для подключения внешних инструментов
     val mcpManager = SimpleMcpManager()
 
@@ -245,6 +251,14 @@ fun main() {
         maxIterations = 15
     )
     println("🎯 MCP Orchestrator инициализирован")
+
+    // Code Review Service - автоматизированный анализ PR
+    val codeReviewService = CodeReviewService(
+        mcpManager = mcpManager,
+        llmClient = llmClient,
+        ragManager = ragManager
+    )
+    println("🔍 Code Review Service инициализирован")
 
     embeddedServer(Netty, port = 8080) {
         install(ContentNegotiation) {
@@ -1436,6 +1450,193 @@ fun main() {
                     docs = docInfos,
                     projectId = currentProject?.id
                 ))
+            }
+
+            // ==================== CODE REVIEW API ====================
+
+            // Выполнение code review для PR
+            post("/api/review") {
+                try {
+                    val request = call.receive<CodeReviewRequest>()
+                    println("🔍 Запрос на code review: ${request.owner}/${request.repo} PR #${request.pullNumber}")
+
+                    // Выполняем ревью
+                    val review = codeReviewService.reviewPullRequest(
+                        owner = request.owner,
+                        repo = request.repo,
+                        pullNumber = request.pullNumber,
+                        useRAG = request.useRAG,
+                        temperature = request.temperature
+                    )
+
+                    // Если нужно - постим на GitHub
+                    var commentId: Long? = null
+                    if (request.postToGitHub) {
+                        // Постим общий комментарий
+                        commentId = codeReviewService.postReviewComment(
+                            owner = request.owner,
+                            repo = request.repo,
+                            pullNumber = request.pullNumber,
+                            review = review
+                        )
+
+                        // Постим line comments для конкретных строк
+                        if (review.issues.any { it.line != null }) {
+                            codeReviewService.postLineComments(
+                                owner = request.owner,
+                                repo = request.repo,
+                                pullNumber = request.pullNumber,
+                                review = review
+                            )
+                        }
+                    }
+
+                    call.respond(CodeReviewResponse(
+                        success = true,
+                        review = review,
+                        postedToGitHub = request.postToGitHub && commentId != null,
+                        gitHubCommentId = commentId
+                    ))
+                } catch (e: Exception) {
+                    println("❌ Ошибка при code review: ${e.message}")
+                    e.printStackTrace()
+                    call.respond(
+                        HttpStatusCode.InternalServerError,
+                        CodeReviewResponse(
+                            success = false,
+                            error = e.message ?: "Unknown error"
+                        )
+                    )
+                }
+            }
+
+            // Получение списка PR для репозитория
+            get("/api/review/prs/{owner}/{repo}") {
+                try {
+                    val owner = call.parameters["owner"]
+                    val repo = call.parameters["repo"]
+                    val state = call.request.queryParameters["state"] ?: "open"
+
+                    if (owner == null || repo == null) {
+                        call.respond(HttpStatusCode.BadRequest, SimpleErrorResponse(error = "Owner and repo required"))
+                        return@get
+                    }
+
+                    val pullRequests = codeReviewService.listPullRequests(owner, repo, state)
+
+                    call.respond(PRListResponse(
+                        owner = owner,
+                        repo = repo,
+                        pullRequests = pullRequests
+                    ))
+                } catch (e: Exception) {
+                    println("❌ Ошибка при получении списка PR: ${e.message}")
+                    call.respond(
+                        HttpStatusCode.InternalServerError,
+                        SimpleErrorResponse(error = e.message ?: "Unknown error")
+                    )
+                }
+            }
+
+            // Быстрый просмотр информации о PR (без полного ревью)
+            get("/api/review/pr/{owner}/{repo}/{pullNumber}") {
+                try {
+                    val owner = call.parameters["owner"]
+                    val repo = call.parameters["repo"]
+                    val pullNumber = call.parameters["pullNumber"]?.toIntOrNull()
+
+                    if (owner == null || repo == null || pullNumber == null) {
+                        call.respond(HttpStatusCode.BadRequest, SimpleErrorResponse(error = "Invalid parameters"))
+                        return@get
+                    }
+
+                    // Получаем базовую информацию о PR через MCP
+                    val result = mcpManager.callTool(
+                        toolName = "pull_request_read",
+                        arguments = mapOf(
+                            "method" to "get",
+                            "owner" to owner,
+                            "repo" to repo,
+                            "pullNumber" to pullNumber
+                        )
+                    )
+
+                    val jsonParser = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+                    val prJson = jsonParser.parseToJsonElement(result).jsonObject
+
+                    val prInfo = PRInfo(
+                        number = pullNumber,
+                        title = prJson["title"]?.jsonPrimitive?.content ?: "",
+                        author = prJson["user"]?.jsonObject?.get("login")?.jsonPrimitive?.content ?: "",
+                        state = prJson["state"]?.jsonPrimitive?.content ?: "",
+                        createdAt = prJson["created_at"]?.jsonPrimitive?.content ?: "",
+                        updatedAt = prJson["updated_at"]?.jsonPrimitive?.content ?: "",
+                        filesChanged = prJson["changed_files"]?.jsonPrimitive?.intOrNull ?: 0,
+                        additions = prJson["additions"]?.jsonPrimitive?.intOrNull ?: 0,
+                        deletions = prJson["deletions"]?.jsonPrimitive?.intOrNull ?: 0,
+                        baseRef = prJson["base"]?.jsonObject?.get("ref")?.jsonPrimitive?.content ?: "",
+                        headRef = prJson["head"]?.jsonObject?.get("ref")?.jsonPrimitive?.content ?: "",
+                        url = prJson["html_url"]?.jsonPrimitive?.content ?: ""
+                    )
+
+                    call.respond(prInfo)
+                } catch (e: Exception) {
+                    println("❌ Ошибка при получении PR: ${e.message}")
+                    call.respond(
+                        HttpStatusCode.InternalServerError,
+                        SimpleErrorResponse(error = e.message ?: "Unknown error")
+                    )
+                }
+            }
+
+            // Постинг результата ревью на GitHub (отдельный endpoint)
+            post("/api/review/post") {
+                try {
+                    val request = call.receive<CodeReviewRequest>()
+
+                    // Сначала выполняем ревью
+                    val review = codeReviewService.reviewPullRequest(
+                        owner = request.owner,
+                        repo = request.repo,
+                        pullNumber = request.pullNumber,
+                        useRAG = request.useRAG,
+                        temperature = request.temperature
+                    )
+
+                    // Постим на GitHub
+                    val commentId = codeReviewService.postReviewComment(
+                        owner = request.owner,
+                        repo = request.repo,
+                        pullNumber = request.pullNumber,
+                        review = review
+                    )
+
+                    // Постим line comments
+                    if (review.issues.any { it.line != null }) {
+                        codeReviewService.postLineComments(
+                            owner = request.owner,
+                            repo = request.repo,
+                            pullNumber = request.pullNumber,
+                            review = review
+                        )
+                    }
+
+                    call.respond(CodeReviewResponse(
+                        success = true,
+                        review = review,
+                        postedToGitHub = commentId != null,
+                        gitHubCommentId = commentId
+                    ))
+                } catch (e: Exception) {
+                    println("❌ Ошибка при постинге ревью: ${e.message}")
+                    call.respond(
+                        HttpStatusCode.InternalServerError,
+                        CodeReviewResponse(
+                            success = false,
+                            error = e.message ?: "Unknown error"
+                        )
+                    )
+                }
             }
         }
     }.also { server ->
