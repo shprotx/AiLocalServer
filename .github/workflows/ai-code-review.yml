@@ -1,0 +1,68 @@
+name: AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  ai-review:
+    name: AI Code Review
+    runs-on: self-hosted
+
+    steps:
+      - name: Check server availability
+        id: check-server
+        run: |
+          if curl -s --connect-timeout 5 http://localhost:8080 > /dev/null 2>&1; then
+            echo "server_up=true" >> $GITHUB_OUTPUT
+            echo "✅ AiLocalServer is running"
+          else
+            echo "server_up=false" >> $GITHUB_OUTPUT
+            echo "⚠️ AiLocalServer is not running on localhost:8080"
+          fi
+
+      - name: Run AI Code Review
+        if: steps.check-server.outputs.server_up == 'true'
+        run: |
+          echo "🔍 Starting AI Code Review for PR #${{ github.event.pull_request.number }}"
+          echo "Repository: ${{ github.repository }}"
+          echo "Author: ${{ github.event.pull_request.user.login }}"
+          echo "Title: ${{ github.event.pull_request.title }}"
+
+          # Извлекаем owner и repo из github.repository (формат: owner/repo)
+          OWNER="${{ github.repository_owner }}"
+          REPO="${{ github.event.repository.name }}"
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+
+          echo "📤 Sending review request to AiLocalServer..."
+
+          RESPONSE=$(curl -s -X POST http://localhost:8080/api/review/post \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"owner\": \"${OWNER}\",
+              \"repo\": \"${REPO}\",
+              \"pullNumber\": ${PR_NUMBER},
+              \"useRAG\": true
+            }")
+
+          echo "📥 Response from server:"
+          echo "$RESPONSE" | jq . 2>/dev/null || echo "$RESPONSE"
+
+          # Проверяем успешность
+          if echo "$RESPONSE" | grep -q '"success":true'; then
+            echo "✅ Code review completed successfully!"
+          else
+            echo "⚠️ Code review completed with warnings"
+            # Не фейлим job, просто предупреждаем
+          fi
+
+      - name: Server not available
+        if: steps.check-server.outputs.server_up == 'false'
+        run: |
+          echo "⚠️ AiLocalServer is not running."
+          echo "Please ensure the server is started on localhost:8080"
+          echo ""
+          echo "To start the server:"
+          echo "  cd /Users/artur/StudioProjects/AiLocalServer"
+          echo "  ./gradlew run"
+          # Не фейлим job, чтобы не блокировать PR

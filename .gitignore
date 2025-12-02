@@ -45,3 +45,9 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+
+### Secrets ###
+mcp-servers.json
+.env
+chats.db
+node_modules/

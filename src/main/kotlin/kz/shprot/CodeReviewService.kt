@@ -101,12 +101,11 @@ class CodeReviewService(
      */
     private suspend fun getPullRequestInfo(owner: String, repo: String, pullNumber: Int): PRInfoInternal {
         val result = mcpManager.callTool(
-            toolName = "pull_request_read",
+            toolName = "get_pull_request",
             arguments = mapOf(
-                "method" to "get",
                 "owner" to owner,
                 "repo" to repo,
-                "pullNumber" to pullNumber
+                "pull_number" to pullNumber
             )
         )
 
@@ -128,18 +127,30 @@ class CodeReviewService(
     }
 
     /**
-     * Получает diff PR через MCP GitHub
+     * Получает diff PR через патчи файлов (официальный GitHub MCP не имеет get_diff)
+     * Собираем diff из patch полей каждого измененного файла
      */
     private suspend fun getPullRequestDiff(owner: String, repo: String, pullNumber: Int): String {
-        return mcpManager.callTool(
-            toolName = "pull_request_read",
+        // Получаем файлы с патчами
+        val filesResult = mcpManager.callTool(
+            toolName = "get_pull_request_files",
             arguments = mapOf(
-                "method" to "get_diff",
                 "owner" to owner,
                 "repo" to repo,
-                "pullNumber" to pullNumber
+                "pull_number" to pullNumber
             )
         )
+
+        // Собираем diff из патчей файлов
+        return runCatching {
+            val jsonArray = json.parseToJsonElement(filesResult).jsonArray
+            jsonArray.mapNotNull { file ->
+                val fileObj = file.jsonObject
+                val filename = fileObj["filename"]?.jsonPrimitive?.content ?: return@mapNotNull null
+                val patch = fileObj["patch"]?.jsonPrimitive?.content ?: return@mapNotNull null
+                "diff --git a/$filename b/$filename\n$patch"
+            }.joinToString("\n\n")
+        }.getOrElse { filesResult }
     }
 
     /**
@@ -147,12 +158,11 @@ class CodeReviewService(
      */
     private suspend fun getPullRequestFiles(owner: String, repo: String, pullNumber: Int): List<ChangedFile> {
         val result = mcpManager.callTool(
-            toolName = "pull_request_read",
+            toolName = "get_pull_request_files",
             arguments = mapOf(
-                "method" to "get_files",
                 "owner" to owner,
                 "repo" to repo,
-                "pullNumber" to pullNumber
+                "pull_number" to pullNumber
             )
         )
 
@@ -373,68 +383,36 @@ class CodeReviewService(
     }
 
     /**
-     * Постит line comments к конкретным строкам кода
+     * Создает PR review через официальный GitHub MCP
      */
-    suspend fun postLineComments(
+    suspend fun postPullRequestReview(
         owner: String,
         repo: String,
         pullNumber: Int,
         review: CodeReviewResult
     ) {
-        // Создаем pending review
-        runCatching {
-            mcpManager.callTool(
-                toolName = "pull_request_review_write",
-                arguments = mapOf(
-                    "method" to "create",
-                    "owner" to owner,
-                    "repo" to repo,
-                    "pullNumber" to pullNumber
-                )
-            )
-        }
-
-        // Добавляем комментарии к конкретным строкам
-        review.issues.filter { it.line != null && it.file.isNotEmpty() }.forEach { issue ->
-            runCatching {
-                mcpManager.callTool(
-                    toolName = "add_comment_to_pending_review",
-                    arguments = mapOf(
-                        "owner" to owner,
-                        "repo" to repo,
-                        "pullNumber" to pullNumber,
-                        "path" to issue.file,
-                        "line" to issue.line!!,
-                        "body" to formatIssueAsComment(issue),
-                        "side" to "RIGHT",
-                        "subjectType" to "LINE"
-                    )
-                )
-                println("💬 Добавлен комментарий к ${issue.file}:${issue.line}")
-            }.onFailure {
-                println("⚠️ Не удалось добавить комментарий к ${issue.file}:${issue.line}: ${it.message}")
-            }
-        }
-
-        // Отправляем review
         val event = when (review.recommendation) {
             "approve" -> "APPROVE"
             "request_changes" -> "REQUEST_CHANGES"
             else -> "COMMENT"
         }
 
+        val reviewBody = formatReviewAsMarkdown(review)
+
         runCatching {
             mcpManager.callTool(
-                toolName = "pull_request_review_write",
+                toolName = "create_pull_request_review",
                 arguments = mapOf(
-                    "method" to "submit_pending",
                     "owner" to owner,
                     "repo" to repo,
-                    "pullNumber" to pullNumber,
+                    "pull_number" to pullNumber,
                     "event" to event,
-                    "body" to "🤖 Автоматический code review\n\nОценка: ${review.overallScore}/10"
+                    "body" to reviewBody
                 )
             )
+            println("✅ PR Review создан: $event")
+        }.onFailure {
+            println("⚠️ Не удалось создать PR review: ${it.message}")
         }
     }
 

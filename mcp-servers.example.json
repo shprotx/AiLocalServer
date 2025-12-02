@@ -1,0 +1,50 @@
+{
+  "mcpServers": {
+    "github": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+      },
+      "description": "GitHub MCP сервер для работы с репозиториями, PR, issues"
+    },
+    "weather": {
+      "type": "stdio",
+      "command": "java",
+      "args": [
+        "-jar",
+        "weather-mcp/build/libs/weather-mcp-1.0.0.jar"
+      ],
+      "description": "Погодный сервер для получения текущей температуры, прогноза и погоды по городам"
+    },
+    "telegram": {
+      "type": "stdio",
+      "command": "/opt/homebrew/bin/telegram-mcp",
+      "args": [],
+      "env": {
+        "TG_APP_ID": "${TG_APP_ID}",
+        "TG_API_HASH": "${TG_API_HASH}"
+      },
+      "description": "Telegram MCP сервер для работы с чатами, каналами и сообщениями"
+    },
+    "fetch": {
+      "type": "stdio",
+      "command": "mcp-server-fetch",
+      "args": [],
+      "description": "Fetch сервер для получения контента из интернета и конвертации в Markdown"
+    },
+    "filesystem": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "node_modules/@modelcontextprotocol/server-filesystem/dist/index.js",
+        "."
+      ],
+      "description": "Filesystem сервер для работы с файлами (чтение, запись, поиск) в директории проекта"
+    }
+  }
+}

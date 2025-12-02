@@ -1472,7 +1472,7 @@ fun main() {
                     // Если нужно - постим на GitHub
                     var commentId: Long? = null
                     if (request.postToGitHub) {
-                        // Постим общий комментарий
+                        // Постим общий комментарий (issue comment)
                         commentId = codeReviewService.postReviewComment(
                             owner = request.owner,
                             repo = request.repo,
@@ -1480,15 +1480,13 @@ fun main() {
                             review = review
                         )
 
-                        // Постим line comments для конкретных строк
-                        if (review.issues.any { it.line != null }) {
-                            codeReviewService.postLineComments(
-                                owner = request.owner,
-                                repo = request.repo,
-                                pullNumber = request.pullNumber,
-                                review = review
-                            )
-                        }
+                        // Также создаем PR Review
+                        codeReviewService.postPullRequestReview(
+                            owner = request.owner,
+                            repo = request.repo,
+                            pullNumber = request.pullNumber,
+                            review = review
+                        )
                     }
 
                     call.respond(CodeReviewResponse(
@@ -1603,7 +1601,7 @@ fun main() {
                         temperature = request.temperature
                     )
 
-                    // Постим на GitHub
+                    // Постим на GitHub (комментарий + PR review)
                     val commentId = codeReviewService.postReviewComment(
                         owner = request.owner,
                         repo = request.repo,
@@ -1611,15 +1609,13 @@ fun main() {
                         review = review
                     )
 
-                    // Постим line comments
-                    if (review.issues.any { it.line != null }) {
-                        codeReviewService.postLineComments(
-                            owner = request.owner,
-                            repo = request.repo,
-                            pullNumber = request.pullNumber,
-                            review = review
-                        )
-                    }
+                    // Также создаем PR Review
+                    codeReviewService.postPullRequestReview(
+                        owner = request.owner,
+                        repo = request.repo,
+                        pullNumber = request.pullNumber,
+                        review = review
+                    )
 
                     call.respond(CodeReviewResponse(
                         success = true,
