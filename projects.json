@@ -1,0 +1,12 @@
+{
+    "projects": [
+        {
+            "id": "sapistar2",
+            "name": "Avadesk",
+            "rootPath": "/Users/artur/StudioProjects/SapiStar2",
+            "type": "ANDROID",
+            "docsPath": ".claude",
+            "readmePath": "README.md"
+        }
+    ]
+}

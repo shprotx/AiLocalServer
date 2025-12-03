@@ -45,3 +45,18 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+
+### Node ###
+node_modules/
+package-lock.json
+
+### Database ###
+*.db
+*.sqlite
+
+### Temporary files ###
+*.tmp
+*.temp
+*.backup
+test-*.txt
+moscow_temp.txt
