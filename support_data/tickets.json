@@ -1,0 +1,560 @@
+{
+    "tickets": [
+        {
+            "id": 1,
+            "projectId": "sapistar2",
+            "title": "Не работает авторизация через Appwrite",
+            "description": "При попытке войти в приложение появляется ошибка 'Network error'. Проверил интернет - работает. Версия приложения 2.12.0",
+            "status": "OPEN",
+            "priority": "HIGH",
+            "category": "AUTH",
+            "createdAt": 1733300000000,
+            "updatedAt": 1733300000000,
+            "userId": "user_123",
+            "assignee": null,
+            "tags": [
+                "appwrite",
+                "network",
+                "login"
+            ],
+            "relatedFiles": [
+                "feature/auth/viewmodel/AuthViewModel.kt",
+                "di/AppwriteModule.kt"
+            ],
+            "comments": [
+                {
+                    "id": 1,
+                    "ticketId": 1,
+                    "author": "Поддержка",
+                    "content": "Проверьте конфигурацию Appwrite в настройках приложения. Убедитесь, что endpoint и project ID указаны правильно.",
+                    "isFromSupport": true,
+                    "createdAt": 1733301000000
+                }
+            ]
+        },
+        {
+            "id": 2,
+            "projectId": "sapistar2",
+            "title": "Сканер не распознаёт штрихкоды EAN-13",
+            "description": "Камера открывается, но штрихкоды EAN-13 не сканируются. QR-коды работают нормально. Xiaomi Redmi Note 10, Android 12.",
+            "status": "IN_PROGRESS",
+            "priority": "MEDIUM",
+            "category": "SCANNER",
+            "createdAt": 1733290000000,
+            "updatedAt": 1733295000000,
+            "userId": "user_456",
+            "assignee": "dev_team",
+            "tags": [
+                "scanner",
+                "ean13",
+                "xiaomi",
+                "ml-kit"
+            ],
+            "relatedFiles": [
+                "core/base/data/scanner/BarcodeScanner.kt"
+            ],
+            "comments": [
+                {
+                    "id": 1,
+                    "ticketId": 2,
+                    "author": "user_456",
+                    "content": "Попробовал перезапустить приложение - не помогло",
+                    "isFromSupport": false,
+                    "createdAt": 1733291000000
+                },
+                {
+                    "id": 2,
+                    "ticketId": 2,
+                    "author": "Поддержка",
+                    "content": "Проверяем совместимость с ML Kit на вашей модели устройства. Пока можете попробовать использовать ручной ввод штрихкода.",
+                    "isFromSupport": true,
+                    "createdAt": 1733295000000
+                }
+            ]
+        },
+        {
+            "id": 3,
+            "projectId": "sapistar2",
+            "title": "Приложение зависает при печати этикеток",
+            "description": "При отправке на печать более 5 этикеток приложение зависает на 10-15 секунд. Принтер Zebra ZD420.",
+            "status": "WAITING",
+            "priority": "MEDIUM",
+            "category": "PRINTER",
+            "createdAt": 1733280000000,
+            "updatedAt": 1733285000000,
+            "userId": "user_789",
+            "assignee": null,
+            "tags": [
+                "printer",
+                "zebra",
+                "performance",
+                "freeze"
+            ],
+            "relatedFiles": [
+                "core/base/data/printer/PrinterManager.kt",
+                "feature/printer/viewmodel/PrinterViewModel.kt"
+            ],
+            "comments": []
+        },
+        {
+            "id": 4,
+            "projectId": "sapistar2",
+            "title": "Карта не загружается в офлайн режиме",
+            "description": "Яндекс.Карты не работают без интернета. Нужна возможность кэшировать карту для работы на складе.",
+            "status": "OPEN",
+            "priority": "LOW",
+            "category": "MAP",
+            "createdAt": 1733270000000,
+            "updatedAt": 1733270000000,
+            "userId": "user_101",
+            "assignee": null,
+            "tags": [
+                "map",
+                "offline",
+                "yandex-mapkit",
+                "cache"
+            ],
+            "relatedFiles": [
+                "feature/map/"
+            ],
+            "comments": []
+        },
+        {
+            "id": 5,
+            "projectId": "sapistar2",
+            "title": "Задачи не синхронизируются с сервером",
+            "description": "После выполнения задачи статус меняется локально, но на сервере остаётся старый. Приходится перезапускать приложение.",
+            "status": "RESOLVED",
+            "priority": "HIGH",
+            "category": "SYNC",
+            "createdAt": 1733260000000,
+            "updatedAt": 1733275000000,
+            "userId": "user_202",
+            "assignee": "dev_team",
+            "tags": [
+                "sync",
+                "tasks",
+                "appwrite",
+                "realtime"
+            ],
+            "relatedFiles": [
+                "core/base/data/repository/TaskRepository.kt",
+                "feature/tasks/viewmodel/TasksViewModel.kt"
+            ],
+            "comments": [
+                {
+                    "id": 1,
+                    "ticketId": 5,
+                    "author": "Поддержка",
+                    "content": "Проблема исправлена в версии 2.12.1. Пожалуйста, обновите приложение.",
+                    "isFromSupport": true,
+                    "createdAt": 1733275000000
+                }
+            ]
+        },
+        {
+            "id": 6,
+            "projectId": "sapistar2",
+            "title": "При генерации этикеток теряются данные",
+            "description": "При генерации этикеток через ZXing некоторые поля формы не попадают в итоговый штрихкод. Воспроизводится на FormMarker задачах.",
+            "status": "OPEN",
+            "priority": "MEDIUM",
+            "category": "PRINTER",
+            "createdAt": 1733250000000,
+            "updatedAt": 1733250000000,
+            "userId": "user_303",
+            "assignee": null,
+            "tags": [
+                "zxing",
+                "label",
+                "formmarker",
+                "data-loss"
+            ],
+            "relatedFiles": [
+                "core/base/data/printer/PictureManager.kt",
+                "feature/closetask/interactor/FormMarkerInteractor.kt"
+            ],
+            "comments": []
+        },
+        {
+            "id": 7,
+            "projectId": "sapistar2",
+            "title": "Bluetooth-принтер TSC не подключается",
+            "description": "Принтер TSC TE200 не появляется в списке доступных устройств. Bluetooth сопряжение прошло успешно. Samsung Galaxy A52, Android 13.",
+            "status": "OPEN",
+            "priority": "HIGH",
+            "category": "PRINTER",
+            "createdAt": 1733240000000,
+            "updatedAt": 1733240000000,
+            "userId": "user_404",
+            "assignee": null,
+            "tags": [
+                "bluetooth",
+                "tsc",
+                "printer",
+                "connection"
+            ],
+            "relatedFiles": [
+                "core/base/data/printer/PrinterManager.kt",
+                "di/PrinterModule.kt"
+            ],
+            "comments": [
+                {
+                    "id": 1,
+                    "ticketId": 7,
+                    "author": "user_404",
+                    "content": "Перезагрузил телефон и принтер - не помогло. Другие приложения видят принтер.",
+                    "isFromSupport": false,
+                    "createdAt": 1733241000000
+                }
+            ]
+        },
+        {
+            "id": 8,
+            "projectId": "sapistar2",
+            "title": "Ошибка при подсчёте коробок в BoxOrderCounter",
+            "description": "При сканировании более 50 коробок счётчик сбрасывается на 0. Данные теряются. Версия 2.12.0.",
+            "status": "IN_PROGRESS",
+            "priority": "CRITICAL",
+            "category": "TASKS",
+            "createdAt": 1733230000000,
+            "updatedAt": 1733235000000,
+            "userId": "user_505",
+            "assignee": "dev_team",
+            "tags": [
+                "boxordercounter",
+                "counter",
+                "data-loss",
+                "critical"
+            ],
+            "relatedFiles": [
+                "feature/closetask/interactor/BoxOrderCounterInteractor.kt",
+                "feature/closetask/viewmodel/CloseTaskViewModel.kt"
+            ],
+            "comments": [
+                {
+                    "id": 1,
+                    "ticketId": 8,
+                    "author": "Поддержка",
+                    "content": "Критическая ошибка. Передали разработчикам. Временное решение: сохраняйте прогресс каждые 30 коробок, нажимая 'Сохранить'.",
+                    "isFromSupport": true,
+                    "createdAt": 1733235000000
+                }
+            ]
+        },
+        {
+            "id": 9,
+            "projectId": "sapistar2",
+            "title": "Push-уведомления не приходят на Huawei",
+            "description": "На устройстве Huawei P40 Lite (без Google Services) не приходят push-уведомления о новых задачах. HMS установлен.",
+            "status": "OPEN",
+            "priority": "MEDIUM",
+            "category": "UI",
+            "createdAt": 1733220000000,
+            "updatedAt": 1733220000000,
+            "userId": "user_606",
+            "assignee": null,
+            "tags": [
+                "huawei",
+                "hms",
+                "push",
+                "notifications"
+            ],
+            "relatedFiles": [
+                "core/base/data/notifications/HuaweiPushService.kt",
+                "di/NotificationModule.kt"
+            ],
+            "comments": []
+        },
+        {
+            "id": 10,
+            "projectId": "sapistar2",
+            "title": "DeliveryMarker не показывает расхождения",
+            "description": "При приёмке товаров (режим Products) не отображается разница между ожидаемым и фактическим количеством. Инфоблок пустой.",
+            "status": "OPEN",
+            "priority": "MEDIUM",
+            "category": "TASKS",
+            "createdAt": 1733210000000,
+            "updatedAt": 1733210000000,
+            "userId": "user_707",
+            "assignee": null,
+            "tags": [
+                "deliverymarker",
+                "products",
+                "infoblock",
+                "ui"
+            ],
+            "relatedFiles": [
+                "feature/closetask/components/infoblock/DeliveryInfoBlock.kt",
+                "feature/closetask/interactor/DeliveryMarkerInteractor.kt"
+            ],
+            "comments": []
+        },
+        {
+            "id": 11,
+            "projectId": "sapistar2",
+            "title": "Чек-лист не сохраняет прогресс",
+            "description": "При выходе из задачи типа Checklist и повторном входе все отмеченные пункты сбрасываются. Room база не сохраняет данные.",
+            "status": "IN_PROGRESS",
+            "priority": "HIGH",
+            "category": "TASKS",
+            "createdAt": 1733200000000,
+            "updatedAt": 1733205000000,
+            "userId": "user_808",
+            "assignee": "dev_team",
+            "tags": [
+                "checklist",
+                "room",
+                "persistence",
+                "data-loss"
+            ],
+            "relatedFiles": [
+                "core/base/data/database/ChecklistDao.kt",
+                "feature/closetask/viewmodel/ChecklistViewModel.kt"
+            ],
+            "comments": [
+                {
+                    "id": 1,
+                    "ticketId": 11,
+                    "author": "Поддержка",
+                    "content": "Подтверждаем баг. Временное решение: не выходите из чек-листа до его полного завершения.",
+                    "isFromSupport": true,
+                    "createdAt": 1733205000000
+                }
+            ]
+        },
+        {
+            "id": 12,
+            "projectId": "sapistar2",
+            "title": "Голосовые подсказки TTS не работают",
+            "description": "При сканировании товаров нет голосового подтверждения. Настройка 'Голосовые подсказки' включена. Xiaomi Mi 11.",
+            "status": "OPEN",
+            "priority": "LOW",
+            "category": "UI",
+            "createdAt": 1733190000000,
+            "updatedAt": 1733190000000,
+            "userId": "user_909",
+            "assignee": null,
+            "tags": [
+                "tts",
+                "voice",
+                "huawei-hms",
+                "xiaomi"
+            ],
+            "relatedFiles": [
+                "core/base/data/voice/VoiceManager.kt"
+            ],
+            "comments": []
+        },
+        {
+            "id": 13,
+            "projectId": "sapistar2",
+            "title": "Медленная загрузка изображений в задачах",
+            "description": "Фотографии товаров в задачах загружаются очень долго (30-60 секунд). Интернет быстрый (50 Мбит/с).",
+            "status": "OPEN",
+            "priority": "MEDIUM",
+            "category": "PERFORMANCE",
+            "createdAt": 1733180000000,
+            "updatedAt": 1733180000000,
+            "userId": "user_110",
+            "assignee": null,
+            "tags": [
+                "coil",
+                "images",
+                "performance",
+                "slow"
+            ],
+            "relatedFiles": [
+                "core/base/data/files/InternalDownloadManager.kt",
+                "di/DataModule.kt"
+            ],
+            "comments": []
+        },
+        {
+            "id": 14,
+            "projectId": "sapistar2",
+            "title": "PDF-отчёт не генерируется",
+            "description": "При нажатии 'Экспорт в PDF' в архиве задач ничего не происходит. Никакой ошибки не показывается. Версия 2.12.0.",
+            "status": "OPEN",
+            "priority": "MEDIUM",
+            "category": "TASKS",
+            "createdAt": 1733170000000,
+            "updatedAt": 1733170000000,
+            "userId": "user_211",
+            "assignee": null,
+            "tags": [
+                "pdf",
+                "pdfbox",
+                "export",
+                "archive"
+            ],
+            "relatedFiles": [
+                "core/base/data/files/PdfManager.kt",
+                "feature/archive/viewmodel/ArchiveViewModel.kt"
+            ],
+            "comments": []
+        },
+        {
+            "id": 15,
+            "projectId": "sapistar2",
+            "title": "Ошибка 401 при синхронизации после обновления",
+            "description": "После обновления до версии 2.12.0 постоянно появляется ошибка 401 Unauthorized. Выход и повторный вход не помогает.",
+            "status": "RESOLVED",
+            "priority": "CRITICAL",
+            "category": "AUTH",
+            "createdAt": 1733160000000,
+            "updatedAt": 1733175000000,
+            "userId": "user_312",
+            "assignee": "dev_team",
+            "tags": [
+                "401",
+                "auth",
+                "appwrite",
+                "token"
+            ],
+            "relatedFiles": [
+                "core/base/data/api/AppwriteClient.kt",
+                "di/AppwriteModule.kt"
+            ],
+            "comments": [
+                {
+                    "id": 1,
+                    "ticketId": 15,
+                    "author": "Поддержка",
+                    "content": "Обнаружена проблема с обновлением токена сессии. Исправлено в 2.12.1. Для 2.12.0: очистите данные приложения и войдите заново.",
+                    "isFromSupport": true,
+                    "createdAt": 1733175000000
+                }
+            ]
+        },
+        {
+            "id": 16,
+            "projectId": "sapistar2",
+            "title": "Камера не фокусируется при сканировании",
+            "description": "При открытии сканера камера не может сфокусироваться на штрихкоде. Изображение размытое. Google Pixel 6.",
+            "status": "OPEN",
+            "priority": "MEDIUM",
+            "category": "SCANNER",
+            "createdAt": 1733150000000,
+            "updatedAt": 1733150000000,
+            "userId": "user_413",
+            "assignee": null,
+            "tags": [
+                "camerax",
+                "focus",
+                "scanner",
+                "pixel"
+            ],
+            "relatedFiles": [
+                "core/base/data/scanner/BarcodeScanner.kt",
+                "feature/closetask/screen/ScannerScreen.kt"
+            ],
+            "comments": []
+        },
+        {
+            "id": 17,
+            "projectId": "sapistar2",
+            "title": "WorkManager не выполняет фоновую синхронизацию",
+            "description": "При закрытии приложения незавершённые задачи не синхронизируются в фоне. Режим энергосбережения отключён.",
+            "status": "IN_PROGRESS",
+            "priority": "HIGH",
+            "category": "SYNC",
+            "createdAt": 1733140000000,
+            "updatedAt": 1733145000000,
+            "userId": "user_514",
+            "assignee": "dev_team",
+            "tags": [
+                "workmanager",
+                "background",
+                "sync",
+                "battery"
+            ],
+            "relatedFiles": [
+                "core/base/data/workmanager/SyncWorker.kt",
+                "di/WorkerModule.kt"
+            ],
+            "comments": [
+                {
+                    "id": 1,
+                    "ticketId": 17,
+                    "author": "Поддержка",
+                    "content": "Проверяем настройки WorkManager. Добавьте приложение в исключения оптимизации батареи в настройках Android.",
+                    "isFromSupport": true,
+                    "createdAt": 1733145000000
+                }
+            ]
+        },
+        {
+            "id": 18,
+            "projectId": "sapistar2",
+            "title": "Сортировка товаров не сохраняет зону",
+            "description": "В режиме DeliveryMarker Sorting после выбора зоны размещения она не сохраняется. При повторном сканировании зона пустая.",
+            "status": "OPEN",
+            "priority": "MEDIUM",
+            "category": "TASKS",
+            "createdAt": 1733130000000,
+            "updatedAt": 1733130000000,
+            "userId": "user_615",
+            "assignee": null,
+            "tags": [
+                "deliverymarker",
+                "sorting",
+                "zone",
+                "persistence"
+            ],
+            "relatedFiles": [
+                "feature/closetask/interactor/DeliveryMarkerInteractor.kt",
+                "feature/closetask/screen/SortingScreen.kt"
+            ],
+            "comments": []
+        },
+        {
+            "id": 19,
+            "projectId": "sapistar2",
+            "title": "Видео сжимается слишком сильно",
+            "description": "При прикреплении видео к чек-листу качество становится неприемлемым. Невозможно разобрать детали. FFmpeg сжимает слишком агрессивно.",
+            "status": "OPEN",
+            "priority": "LOW",
+            "category": "PERFORMANCE",
+            "createdAt": 1733120000000,
+            "updatedAt": 1733120000000,
+            "userId": "user_716",
+            "assignee": null,
+            "tags": [
+                "ffmpeg",
+                "video",
+                "compression",
+                "quality"
+            ],
+            "relatedFiles": [
+                "core/base/data/media/VideoCompressor.kt"
+            ],
+            "comments": []
+        },
+        {
+            "id": 20,
+            "projectId": "sapistar2",
+            "title": "Deep link не открывает задачу",
+            "description": "При нажатии на push-уведомление приложение открывается, но задача не отображается. URL: avadesk://newtask/uuid/true",
+            "status": "OPEN",
+            "priority": "MEDIUM",
+            "category": "UI",
+            "createdAt": 1733110000000,
+            "updatedAt": 1733110000000,
+            "userId": "user_817",
+            "assignee": null,
+            "tags": [
+                "deeplink",
+                "navigation",
+                "push",
+                "task"
+            ],
+            "relatedFiles": [
+                "navigation/NavGraph.kt",
+                "activity/MainViewModel.kt"
+            ],
+            "comments": []
+        }
+    ],
+    "nextTicketId": 21
+}

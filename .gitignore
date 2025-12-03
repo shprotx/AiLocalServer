@@ -5,12 +5,7 @@ build/
 !**/src/test/**/build/
 
 ### IntelliJ IDEA ###
-.idea/*
-!.idea/runConfigurations/
-.idea/modules.xml
-.idea/jarRepositories.xml
-.idea/compiler.xml
-.idea/libraries/
+.idea/
 *.iws
 *.iml
 *.ipr
@@ -47,7 +42,20 @@ bin/
 .DS_Store
 
 ### Secrets ###
-mcp-servers.json
 .env
-chats.db
+
+### Node ###
 node_modules/
+package-lock.json
+
+### Database ###
+*.db
+*.sqlite
+
+### Temporary files ###
+*.tmp
+*.temp
+*.backup
+test-*.txt
+moscow_temp.txt
+
