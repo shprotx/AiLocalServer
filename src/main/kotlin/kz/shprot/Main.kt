@@ -13,6 +13,8 @@ import io.ktor.utils.io.*
 import kz.shprot.models.*
 import kz.shprot.tools.*
 import kz.shprot.commands.CommandHandler
+import kz.shprot.assistant.*
+import kz.shprot.support.TicketManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -259,6 +261,17 @@ fun main() {
         ragManager = ragManager
     )
     println("🔍 Code Review Service инициализирован")
+
+    // Team Assistant - командный ассистент с управлением задачами
+    val ticketManager = TicketManager()
+    val teamAssistant = TeamAssistantService(
+        llmClient = llmClient,
+        mcpManager = mcpManager,
+        ticketManager = ticketManager,
+        projectManager = projectManager,
+        ragManager = ragManager
+    )
+    println("🤖 Team Assistant инициализирован")
 
     embeddedServer(Netty, port = 8080) {
         install(ContentNegotiation) {
@@ -1630,6 +1643,29 @@ fun main() {
                         CodeReviewResponse(
                             success = false,
                             error = e.message ?: "Unknown error"
+                        )
+                    )
+                }
+            }
+
+            // ========================================
+            // Team Assistant API - командный ассистент
+            // ========================================
+            post("/api/assistant") {
+                val request = call.receive<AssistantRequest>()
+                println("🤖 Team Assistant запрос: ${request.message.take(100)}...")
+
+                try {
+                    val response = teamAssistant.processRequest(request)
+                    call.respond(response)
+                } catch (e: Exception) {
+                    println("❌ Ошибка Team Assistant: ${e.message}")
+                    call.respond(
+                        HttpStatusCode.InternalServerError,
+                        AssistantResponse(
+                            success = false,
+                            answer = "Ошибка: ${e.message ?: "Unknown error"}",
+                            projectId = request.projectId
                         )
                     )
                 }

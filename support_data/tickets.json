@@ -5,11 +5,11 @@
             "projectId": "sapistar2",
             "title": "Не работает авторизация через Appwrite",
             "description": "При попытке войти в приложение появляется ошибка 'Network error'. Проверил интернет - работает. Версия приложения 2.12.0",
-            "status": "OPEN",
+            "status": "IN_PROGRESS",
             "priority": "HIGH",
             "category": "AUTH",
             "createdAt": 1733300000000,
-            "updatedAt": 1733300000000,
+            "updatedAt": 1764892811732,
             "userId": "user_123",
             "assignee": null,
             "tags": [
@@ -218,7 +218,7 @@
             "priority": "CRITICAL",
             "category": "TASKS",
             "createdAt": 1733230000000,
-            "updatedAt": 1733235000000,
+            "updatedAt": 1764892813099,
             "userId": "user_505",
             "assignee": "dev_team",
             "tags": [
@@ -554,7 +554,23 @@
                 "activity/MainViewModel.kt"
             ],
             "comments": []
+        },
+        {
+            "id": 21,
+            "projectId": "sapistar2",
+            "title": "Фикса авторизации",
+            "description": "Фикса авторизации",
+            "status": "OPEN",
+            "priority": "MEDIUM",
+            "category": "OTHER",
+            "createdAt": 1764893562812,
+            "updatedAt": 1764893562812,
+            "userId": null,
+            "assignee": null,
+            "tags": [],
+            "relatedFiles": [],
+            "comments": []
         }
     ],
-    "nextTicketId": 21
+    "nextTicketId": 22
 }
